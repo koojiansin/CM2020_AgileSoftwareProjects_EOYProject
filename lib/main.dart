@@ -29,19 +29,19 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  bool _isLoggedIn = false;
+
+  void _toggleLogin(bool status) {
+    setState(() {
+      _isLoggedIn = status;
+    });
+  }
 
   final List<Widget> _pages = [
     const HomeScreen(),
     const CommunicationScreen(),
     const NewsScreen(),
-    const AccountScreen(),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +50,13 @@ class _MainScreenState extends State<MainScreen> {
         title: const Text('Flutter App'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: _pages[_selectedIndex],
+      body: _selectedIndex == 3
+          ? AccountScreen(
+        isLoggedIn: _isLoggedIn,
+        onLogin: () => _toggleLogin(true),
+        onLogout: () => _toggleLogin(false),
+      )
+          : _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -61,13 +67,118 @@ class _MainScreenState extends State<MainScreen> {
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
       ),
     );
   }
 }
 
-// Home, Communication, and News Screens
+// News Section with Author & Date
+class NewsScreen extends StatelessWidget {
+  const NewsScreen({super.key});
+
+  final List<Map<String, String>> newsArticles = const [
+    {
+      "title": "Flutter 3.0 Released!",
+      "excerpt": "The latest version of Flutter introduces new exciting features...",
+      "content": "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
+      "author": "John Doe",
+      "date": "Feb 17, 2025"
+    },
+    {
+      "title": "Dart 3 Announced",
+      "excerpt": "Dart 3 is here with null safety and enhanced compiler optimizations...",
+      "content": "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
+      "author": "Jane Smith",
+      "date": "Feb 16, 2025"
+    },
+    {
+      "title": "AI in Mobile Apps",
+      "excerpt": "Artificial Intelligence is revolutionizing mobile app development...",
+      "content": "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
+      "author": "Alex Johnson",
+      "date": "Feb 15, 2025"
+    }
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: newsArticles.length,
+      itemBuilder: (context, index) {
+        final news = newsArticles[index];
+
+        return Card(
+          margin: const EdgeInsets.all(10),
+          child: ListTile(
+            title: Text(news["title"] ?? "No Title",
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text(news["excerpt"] ?? "No Excerpt"),
+            trailing: const Icon(Icons.arrow_forward),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NewsDetailScreen(
+                    title: news["title"] ?? "No Title",
+                    content: news["content"] ?? "No Content Available",
+                    author: news["author"] ?? "Unknown Author",
+                    date: news["date"] ?? "Unknown Date",
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Detailed News Page with Author and Date
+class NewsDetailScreen extends StatelessWidget {
+  final String title;
+  final String content;
+  final String author;
+  final String date;
+
+  const NewsDetailScreen({
+    super.key,
+    required this.title,
+    required this.content,
+    required this.author,
+    required this.date,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Divider(),
+            Text("Author: $author", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text("Published on: $date", style: const TextStyle(fontSize: 16, color: Colors.grey)),
+            Divider(),
+            const SizedBox(height: 10),
+            Text(content, style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Other Screens (Home, Communication, Account)
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
   @override
@@ -84,126 +195,90 @@ class CommunicationScreen extends StatelessWidget {
   }
 }
 
-class NewsScreen extends StatelessWidget {
-  const NewsScreen({super.key});
+class AccountScreen extends StatefulWidget {
+  final bool isLoggedIn;
+  final VoidCallback onLogin;
+  final VoidCallback onLogout;
+
+  const AccountScreen({
+    super.key,
+    required this.isLoggedIn,
+    required this.onLogin,
+    required this.onLogout,
+  });
+
   @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('News Screen', style: TextStyle(fontSize: 24)));
-  }
+  State<AccountScreen> createState() => _AccountScreenState();
 }
 
-// Account Screen (Login Page)
-class AccountScreen extends StatelessWidget {
-  const AccountScreen({super.key});
+class _AccountScreenState extends State<AccountScreen> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Login',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Username',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                // Add login functionality here
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Login button pressed')),
-                );
-              },
-              child: const Text('Enter'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                );
-              },
-              child: const Text('Register'),
-            ),
-          ],
-        ),
+    return widget.isLoggedIn ? _buildUserAccountPage() : _buildLoginPage();
+  }
+
+  Widget _buildLoginPage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Login', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          TextField(
+            controller: _usernameController,
+            decoration: const InputDecoration(labelText: 'Username', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () {
+              widget.onLogin();
+            },
+            child: const Text('Enter'),
+          ),
+        ],
       ),
     );
   }
-}
 
-// Register Screen
-class RegisterScreen extends StatelessWidget {
-  const RegisterScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Register')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Register',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Username',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                // Add register functionality here
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Register button pressed')),
-                );
-              },
-              child: const Text('Register'),
-            ),
-          ],
-        ),
+  Widget _buildUserAccountPage() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const CircleAvatar(radius: 50, backgroundImage: AssetImage('assets/avatar.png')),
+          const SizedBox(height: 20),
+          const Text('Welcome, User!', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          ListTile(
+            leading: const Icon(Icons.settings),
+            title: const Text('Settings'),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit),
+            title: const Text('Edit Profile'),
+            onTap: () {},
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: widget.onLogout,
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
