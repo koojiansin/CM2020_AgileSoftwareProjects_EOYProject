@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lgpokemon/Components/new_social_card.dart';
+import 'package:lgpokemon/helpers/database_helper.dart';
+import 'package:lgpokemon/screens/my_page.dart';
 import 'package:lgpokemon/screens/news_detail_screen.dart';
+import 'package:lgpokemon/screens/social_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,22 +19,28 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Map<String, String>> latestNews = const [
     {
       "title": "Flutter 3.0 Released!",
-      "excerpt": "The latest version of Flutter introduces new exciting features...",
-      "content": "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
+      "excerpt":
+          "The latest version of Flutter introduces new exciting features...",
+      "content":
+          "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
       "author": "John Doe",
       "date": "Feb 17, 2025"
     },
     {
       "title": "Dart 3 Announced",
-      "excerpt": "Dart 3 is here with null safety and enhanced compiler optimizations...",
-      "content": "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
+      "excerpt":
+          "Dart 3 is here with null safety and enhanced compiler optimizations...",
+      "content":
+          "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
       "author": "Jane Smith",
       "date": "Feb 16, 2025"
     },
     {
       "title": "AI in Mobile Apps",
-      "excerpt": "Artificial Intelligence is revolutionizing mobile app development...",
-      "content": "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
+      "excerpt":
+          "Artificial Intelligence is revolutionizing mobile app development...",
+      "content":
+          "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
       "author": "Alex Johnson",
       "date": "Feb 15, 2025"
     }
@@ -120,26 +130,114 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
               latestNews.length,
-                  (index) => AnimatedContainer(
+              (index) => AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 height: 8,
                 width: _currentIndex == index ? 16 : 8,
                 decoration: BoxDecoration(
-                  color: _currentIndex == index ? Colors.deepPurple : Colors.grey,
+                  color:
+                      _currentIndex == index ? Colors.deepPurple : Colors.grey,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          // Static Welcome Text
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              "Welcome to Flutter News! Stay updated with the latest tech trends.",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+          //Socials
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "Socials",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => SocialPage()));
+                  },
+                  child: Text(
+                    "Expand",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.blue),
+                  ),
+                )
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: DatabaseHelper.instance.getCards(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final data = snapshot.data!;
+                return ListView.builder(
+                  itemCount: data.length,
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (context, index) {
+                    // Use the database record's 'id' to build the card.
+                    final cardId = data[index]['id'];
+                    return NewSocialCard(
+                      cardId: cardId,
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "My Cards",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (context) => MyPage()));
+                  },
+                  child: Text(
+                    "Expand",
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.blue),
+                  ),
+                )
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: DatabaseHelper.instance.getCards(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final data = snapshot.data!;
+                return ListView.builder(
+                  itemCount: data.length,
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (context, index) {
+                    // Use the database record's 'id' to build the card.
+                    final cardId = data[index]['id'];
+                    return NewSocialCard(
+                      cardId: cardId,
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],

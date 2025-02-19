@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:lgpokemon/helpers/database_helper.dart';
 import 'package:lgpokemon/screens/home_screen.dart';
 import 'package:lgpokemon/screens/communication_screen.dart';
 import 'package:lgpokemon/screens/account_screen.dart';
 import 'package:lgpokemon/screens/news_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialize the database by calling the getter
+  await DatabaseHelper.instance.database;
   runApp(const MyApp());
 }
 
@@ -65,8 +69,10 @@ class _MainScreenState extends State<MainScreen> {
       bottomNavigationBar: BottomNavigationBar(
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Communication'),
-          const BottomNavigationBarItem(icon: Icon(Icons.article), label: 'News'),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.chat), label: 'Communication'),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.article), label: 'News'),
           BottomNavigationBarItem(
             icon: Icon(_isLoggedIn ? Icons.person : Icons.login),
             label: _isLoggedIn ? 'Profile' : 'Account',
