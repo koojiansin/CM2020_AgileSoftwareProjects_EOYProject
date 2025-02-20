@@ -174,9 +174,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 10),
+          // Social Cards Content Area
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: DatabaseHelper.instance.getCards(),
+              future: DatabaseHelper.instance.getSocialCards(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -206,7 +207,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   "My Cards",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
-                // Only show the Expand button if logged in.
                 if (widget.isLoggedIn)
                   GestureDetector(
                     onTap: () async {
@@ -230,7 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
           widget.isLoggedIn
               ? Expanded(
                   child: FutureBuilder<List<Map<String, dynamic>>>(
-                    future: DatabaseHelper.instance.getCards(),
+                    future: DatabaseHelper.instance.getUserCards(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) {
                         return const Center(child: CircularProgressIndicator());
@@ -241,7 +241,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         scrollDirection: Axis.horizontal,
                         itemBuilder: (context, index) {
                           final cardId = data[index]['id'];
-                          return NewSocialCard(cardId: cardId);
+                          // Specify isUserCard: true to fetch from usercards table.
+                          return NewSocialCard(
+                              cardId: cardId, isUserCard: true);
                         },
                       );
                     },

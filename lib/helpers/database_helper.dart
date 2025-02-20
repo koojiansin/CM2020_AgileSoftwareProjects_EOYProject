@@ -31,9 +31,9 @@ class DatabaseHelper {
     const idType = 'INTEGER PRIMARY KEY AUTOINCREMENT';
     const textType = 'TEXT NOT NULL';
 
-    // Create the cards table
+    // Create the socialcards table.
     await db.execute('''
-      CREATE TABLE cards (
+      CREATE TABLE socialcards (
         id $idType,
         title $textType,
         grade $textType,
@@ -41,8 +41,8 @@ class DatabaseHelper {
       )
     ''');
 
-    // Seed the database with default cards
-    final defaultCards = [
+    // Seed socialcards with default cards.
+    final defaultSocialCards = [
       {
         'title': 'Charizard',
         'grade': '10',
@@ -75,11 +75,24 @@ class DatabaseHelper {
       },
     ];
 
-    for (var card in defaultCards) {
-      await db.insert('cards', card);
+    for (var card in defaultSocialCards) {
+      await db.insert('socialcards', card);
     }
 
-    // Create the accounts table
+    // Create the usercards table with a username column.
+    await db.execute('''
+      CREATE TABLE usercards (
+        id $idType,
+        title $textType,
+        grade $textType,
+        imagePath $textType,
+        username $textType
+      )
+    ''');
+
+    // (Optionally seed usercards with initial data here.)
+
+    // Create the accounts table.
     await db.execute('''
       CREATE TABLE accounts (
         id $idType,
@@ -88,66 +101,88 @@ class DatabaseHelper {
       )
     ''');
 
-    // Seed the accounts table with one account record
+    // Seed the accounts table with two accounts.
     await db.insert('accounts', {
       'username': 'Username',
       'password': 'Password',
     });
+    await db.insert('accounts', {
+      'username': 'username1',
+      'password': 'password1',
+    });
   }
 
-  // CRUD Methods
-
-  // Insert a card into the database
-  Future<int> insertCard(Map<String, dynamic> card) async {
+  // ----- Social Cards CRUD -----
+  Future<int> insertSocialCard(Map<String, dynamic> card) async {
     final db = await instance.database;
-    return await db.insert('cards', card);
+    return await db.insert('socialcards', card);
   }
 
-  // Retrieve a card by ID
-  Future<Map<String, dynamic>?> getCardById(int id) async {
+  Future<Map<String, dynamic>?> getSocialCardById(int id) async {
     final db = await instance.database;
-    final result = await db.query('cards', where: 'id = ?', whereArgs: [id]);
+    final result =
+        await db.query('socialcards', where: 'id = ?', whereArgs: [id]);
     if (result.isNotEmpty) return result.first;
     return null;
   }
 
-  // Retrieve all cards from the database
-  Future<List<Map<String, dynamic>>> getCards() async {
+  Future<List<Map<String, dynamic>>> getSocialCards() async {
     final db = await instance.database;
-    return await db.query('cards');
+    return await db.query('socialcards');
   }
 
-  // Update a card
-  Future<int> updateCard(Map<String, dynamic> card) async {
+  Future<int> updateSocialCard(Map<String, dynamic> card) async {
     final db = await instance.database;
     final id = card['id'];
-    return await db.update('cards', card, where: 'id = ?', whereArgs: [id]);
+    return await db
+        .update('socialcards', card, where: 'id = ?', whereArgs: [id]);
   }
 
-  // Static method to fetch all cards as objects.
-  static Future<List<Card>> fetchAllCards() async {
-    final List<Map<String, dynamic>> data =
-        await DatabaseHelper.instance.getCards();
-    return data.map((map) => Card.fromMap(map)).toList();
-  }
-
-  // Delete a card
-  Future<int> deleteCard(int id) async {
+  Future<int> deleteSocialCard(int id) async {
     final db = await instance.database;
-    return await db.delete('cards', where: 'id = ?', whereArgs: [id]);
+    return await db.delete('socialcards', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Close the database
-  Future close() async {
+  // ----- User Cards CRUD -----
+  Future<int> insertUserCard(Map<String, dynamic> card) async {
     final db = await instance.database;
-    db.close();
+    return await db.insert('usercards', card);
   }
 
-  // Optionally, you can add methods to retrieve or validate the account.
+  Future<Map<String, dynamic>?> getUserCardById(int id) async {
+    final db = await instance.database;
+    final result =
+        await db.query('usercards', where: 'id = ?', whereArgs: [id]);
+    if (result.isNotEmpty) return result.first;
+    return null;
+  }
+
+  Future<List<Map<String, dynamic>>> getUserCards() async {
+    final db = await instance.database;
+    return await db.query('usercards');
+  }
+
+  Future<int> updateUserCard(Map<String, dynamic> card) async {
+    final db = await instance.database;
+    final id = card['id'];
+    return await db.update('usercards', card, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<int> deleteUserCard(int id) async {
+    final db = await instance.database;
+    return await db.delete('usercards', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // Other existing methods…
   Future<Map<String, dynamic>?> getAccount() async {
     final db = await instance.database;
     final result = await db.query('accounts', limit: 1);
     if (result.isNotEmpty) return result.first;
     return null;
+  }
+
+  Future close() async {
+    final db = await instance.database;
+    db.close();
   }
 }

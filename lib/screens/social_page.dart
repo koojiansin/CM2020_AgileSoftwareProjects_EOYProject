@@ -22,7 +22,7 @@ class _SocialPageState extends State<SocialPage> {
 
   void _refreshCards() {
     setState(() {
-      _cardsFuture = model.Card.fetchAllCards();
+      _cardsFuture = model.Card.fetchAllSocialCards();
     });
   }
 

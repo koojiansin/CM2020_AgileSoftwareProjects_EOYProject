@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lgpokemon/models/card.dart'
-    as model; // alias to avoid conflicts with Flutter's Card widget
+import 'package:lgpokemon/models/card.dart' as model;
 import 'package:lgpokemon/helpers/database_helper.dart';
 import 'package:lgpokemon/Components/card_item.dart';
 
@@ -25,7 +24,7 @@ class _MyPageState extends State<MyPage> {
 
   void _refreshCards() {
     setState(() {
-      _cardsFuture = model.Card.fetchAllCards();
+      _cardsFuture = model.Card.fetchAllUserCards();
     });
   }
 
@@ -38,7 +37,6 @@ class _MyPageState extends State<MyPage> {
     final bytes = await pickedFile.readAsBytes();
     final base64Image = base64Encode(bytes);
 
-    // Show popup dialog with the selected image and input fields.
     final titleController = TextEditingController();
     final gradeController = TextEditingController();
 
@@ -50,7 +48,6 @@ class _MyPageState extends State<MyPage> {
           content: SingleChildScrollView(
             child: Column(
               children: [
-                // Preview the selected image.
                 Image.memory(
                   Uint8List.fromList(bytes),
                   width: 100,
@@ -91,13 +88,14 @@ class _MyPageState extends State<MyPage> {
                   );
                   return;
                 }
-                // Build new card map, storing the image as its Base64 string.
+                // Tag the card with an account username (for example, 'username1')
                 final newCard = {
                   'title': title,
                   'grade': grade,
                   'imagePath': base64Image,
+                  'username': 'username1',
                 };
-                await DatabaseHelper.instance.insertCard(newCard);
+                await DatabaseHelper.instance.insertUserCard(newCard);
                 Navigator.of(context).pop();
                 _refreshCards();
               },
@@ -117,7 +115,6 @@ class _MyPageState extends State<MyPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Display card image
               (card.imagePath.length > 100)
                   ? Image.memory(
                       base64Decode(card.imagePath),
@@ -132,7 +129,6 @@ class _MyPageState extends State<MyPage> {
                       fit: BoxFit.cover,
                     ),
               const SizedBox(height: 10),
-              // Card details
               Text(
                 card.title,
                 style: const TextStyle(
@@ -146,13 +142,12 @@ class _MyPageState extends State<MyPage> {
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 20),
-              // Delete button
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                 ),
                 onPressed: () async {
-                  await DatabaseHelper.instance.deleteCard(card.id!);
+                  await DatabaseHelper.instance.deleteUserCard(card.id!);
                   Navigator.of(context).pop();
                   _refreshCards();
                 },

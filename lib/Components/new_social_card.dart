@@ -5,15 +5,19 @@ import 'package:lgpokemon/models/card.dart' as model;
 
 class NewSocialCard extends StatelessWidget {
   final int cardId;
-  const NewSocialCard({super.key, required this.cardId});
+  final bool isUserCard; // if true, fetch from usercards table
 
-  /// A simple check to decide if [s] is a Base64 encoded image.
+  const NewSocialCard(
+      {super.key, required this.cardId, this.isUserCard = false});
+
   bool isBase64(String s) => s.length > 100;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>?>(
-      future: DatabaseHelper.instance.getCardById(cardId),
+      future: isUserCard
+          ? DatabaseHelper.instance.getUserCardById(cardId)
+          : DatabaseHelper.instance.getSocialCardById(cardId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox(
@@ -46,32 +50,22 @@ class NewSocialCard extends StatelessWidget {
             margin: const EdgeInsets.only(left: 25),
             width: 150,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
+              color: Colors.grey[200],
             ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: imageWidget,
+                imageWidget,
+                const SizedBox(height: 4),
+                Text(
+                  card.title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Text(
-                        card.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        card.grade,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                const SizedBox(height: 2),
+                Text(
+                  card.grade,
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ],
             ),
