@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:lgpokemon/screens/home_screen.dart';
-import 'package:lgpokemon/screens/communication_screen.dart';
+import 'package:lgpokemon/screens/friend_request_screen.dart';
 import 'package:lgpokemon/screens/news_screen.dart';
 import 'package:lgpokemon/screens/account_screen.dart';
 
 void main() {
-  WidgetsFlutterBinding
-      .ensureInitialized(); // Ensures Flutter is properly initialized.
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -24,7 +22,6 @@ class MyApp extends StatelessWidget {
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
-
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
@@ -34,6 +31,7 @@ class _MainScreenState extends State<MainScreen> {
   bool _isLoggedIn = false;
   String _username = "Guest";
 
+  // Updated to accept username.
   void _toggleLogin(bool status, [String username = "Guest"]) {
     setState(() {
       _isLoggedIn = status;
@@ -44,13 +42,12 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      // Pass isLoggedIn flag to HomeScreen.
       HomeScreen(isLoggedIn: _isLoggedIn),
-      const CommunicationScreen(),
+      FriendRequestScreen(currentUser: _username),
       const NewsScreen(),
       AccountScreen(
         isLoggedIn: _isLoggedIn,
-        onLogin: () => _toggleLogin(true, "User123"),
+        onLogin: (username) => _toggleLogin(true, username),
         onLogout: () => _toggleLogin(false),
       ),
     ];
@@ -65,7 +62,7 @@ class _MainScreenState extends State<MainScreen> {
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           const BottomNavigationBarItem(
-              icon: Icon(Icons.chat), label: 'Communication'),
+              icon: Icon(Icons.person_add), label: 'Friend Request'),
           const BottomNavigationBarItem(
               icon: Icon(Icons.article), label: 'News'),
           BottomNavigationBarItem(

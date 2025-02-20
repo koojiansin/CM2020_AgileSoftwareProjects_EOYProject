@@ -90,14 +90,13 @@ class DatabaseHelper {
       )
     ''');
 
-    // (Optionally seed usercards with initial data here.)
-
     // Create the accounts table.
     await db.execute('''
       CREATE TABLE accounts (
         id $idType,
         username $textType,
-        password $textType
+        password $textType,
+        friendCode $textType
       )
     ''');
 
@@ -105,11 +104,23 @@ class DatabaseHelper {
     await db.insert('accounts', {
       'username': 'Username',
       'password': 'Password',
+      'friendCode': 'A00A00A00',
     });
     await db.insert('accounts', {
-      'username': 'username1',
-      'password': 'password1',
+      'username': 'Username1',
+      'password': 'Password1',
+      'friendCode': 'A00A00A01',
     });
+
+    // Create the friends table.
+    await db.execute('''
+  CREATE TABLE friends (
+    id $idType,
+    sender $textType,
+    recipientFriendCode $textType,
+    status $textType DEFAULT 'pending'
+  )
+''');
   }
 
   // ----- Social Cards CRUD -----
@@ -173,12 +184,135 @@ class DatabaseHelper {
     return await db.delete('usercards', where: 'id = ?', whereArgs: [id]);
   }
 
-  // Other existing methods…
-  Future<Map<String, dynamic>?> getAccount() async {
+  // Account related methods.
+
+  // Get an account based on username and password.
+  Future<Map<String, dynamic>?> getAccountByCredentials(
+      String username, String password) async {
     final db = await instance.database;
-    final result = await db.query('accounts', limit: 1);
+    final result = await db.query(
+      'accounts',
+      where: 'username = ? AND password = ?',
+      whereArgs: [username, password],
+      limit: 1,
+    );
     if (result.isNotEmpty) return result.first;
     return null;
+  }
+
+  // Insert an account record.
+  Future<int> insertAccount(Map<String, dynamic> account) async {
+    final db = await instance.database;
+    return await db.insert('accounts', account);
+  }
+
+  // Generate the next ascending friend code.
+  Future<String> generateNextFriendCode() async {
+    final db = await instance.database;
+    final result = await db.rawQuery(
+        "SELECT friendCode FROM accounts ORDER BY friendCode DESC LIMIT 1");
+    if (result.isEmpty) {
+      return "A00A00A00";
+    }
+    final String lastCode = result.first['friendCode'] as String;
+    int lastNumber = int.parse(lastCode.substring(lastCode.length - 2));
+    lastNumber++;
+    String newSuffix = lastNumber.toString().padLeft(2, '0');
+    return "A00A00A$newSuffix";
+  }
+
+  // ----- Friends CRUD -----
+  Future<int> insertFriendRequest(
+      String sender, String recipientFriendCode) async {
+    final db = await instance.database;
+    return await db.insert('friends', {
+      'sender': sender,
+      'recipientFriendCode': recipientFriendCode,
+      'status': 'pending',
+    });
+  }
+
+// Get incoming friend requests for a given recipient friend code.
+  Future<List<Map<String, dynamic>>> getIncomingFriendRequests(
+      String recipientFriendCode) async {
+    final db = await instance.database;
+    return await db.query(
+      'friends',
+      where: 'recipientFriendCode = ?',
+      whereArgs: [recipientFriendCode],
+    );
+  }
+
+  // Get an account by friend code.
+  Future<Map<String, dynamic>?> getAccountByFriendCode(
+      String friendCode) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'accounts',
+      where: 'friendCode = ?',
+      whereArgs: [friendCode],
+      limit: 1,
+    );
+    if (result.isNotEmpty) return result.first;
+    return null;
+  }
+
+  // Accept a friend request by updating its status.
+  Future<int> acceptFriendRequest(int requestId) async {
+    final db = await instance.database;
+    return await db.update(
+      'friends',
+      {'status': 'accepted'},
+      where: 'id = ?',
+      whereArgs: [requestId],
+    );
+  }
+
+  // Get an account by username.
+  Future<Map<String, dynamic>?> getAccountByUsername(String username) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'accounts',
+      where: 'username = ?',
+      whereArgs: [username],
+      limit: 1,
+    );
+    if (result.isNotEmpty) return result.first;
+    return null;
+  }
+
+  // Get friend requests sent by owner.
+  Future<List<Map<String, dynamic>>> getFriendRequestsByOwner(
+      String owner) async {
+    final db = await instance.database;
+    return await db.query(
+      'friends',
+      where: 'sender = ?',
+      whereArgs: [owner],
+    );
+  }
+
+  // Get a friend request by its ID.
+  Future<Map<String, dynamic>?> getFriendRequestById(int requestId) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'friends',
+      where: 'id = ?',
+      whereArgs: [requestId],
+      limit: 1,
+    );
+    if (result.isNotEmpty) return result.first;
+    return null;
+  }
+
+  // Decline a friend request by deleting it.
+  Future<int> declineFriendRequest(int requestId) async {
+    final db = await instance.database;
+    return await db.delete(
+      'friends',
+      where: 'id = ?',
+      whereArgs: [requestId],
+    );
   }
 
   Future close() async {
