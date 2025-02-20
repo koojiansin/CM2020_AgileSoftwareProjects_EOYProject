@@ -1,32 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:lgpokemon/helpers/database_helper.dart';
 import 'package:lgpokemon/screens/home_screen.dart';
 import 'package:lgpokemon/screens/communication_screen.dart';
-import 'package:lgpokemon/screens/account_screen.dart';
 import 'package:lgpokemon/screens/news_screen.dart';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Initialize the database by calling the getter
-  await DatabaseHelper.instance.database;
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MainScreen(),
-    );
-  }
-}
+import 'package:lgpokemon/screens/account_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -50,12 +26,13 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
-      const HomeScreen(),
+      // Pass isLoggedIn flag to HomeScreen.
+      HomeScreen(isLoggedIn: _isLoggedIn),
       const CommunicationScreen(),
       const NewsScreen(),
       AccountScreen(
         isLoggedIn: _isLoggedIn,
-        onLogin: () => _toggleLogin(true, "User123"), // Simulated username
+        onLogin: () => _toggleLogin(true, "User123"),
         onLogout: () => _toggleLogin(false),
       ),
     ];

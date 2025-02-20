@@ -6,7 +6,8 @@ import 'package:lgpokemon/screens/news_detail_screen.dart';
 import 'package:lgpokemon/screens/social_page.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool isLoggedIn;
+  const HomeScreen({super.key, required this.isLoggedIn});
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -52,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(title: const Text("Home")),
       body: Column(
         children: [
-          // News Slider (Replaced CarouselSlider with PageView)
+          // News Slider
           SizedBox(
             height: 200,
             child: PageView.builder(
@@ -125,7 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Dots Indicator
+          // Dots Indicator for the News Slider
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
@@ -144,23 +145,26 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          //Socials
+          // Social Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 25.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
+                const Text(
                   "Socials",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => SocialPage()));
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const SocialPage()),
+                    );
                   },
-                  child: Text(
+                  child: const Text(
                     "Expand",
                     style: TextStyle(
                         fontWeight: FontWeight.bold, color: Colors.blue),
@@ -184,63 +188,73 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, index) {
                     // Use the database record's 'id' to build the card.
                     final cardId = data[index]['id'];
-                    return NewSocialCard(
-                      cardId: cardId,
-                    );
+                    return NewSocialCard(cardId: cardId);
                   },
                 );
               },
             ),
           ),
           const SizedBox(height: 10),
+          // "My Cards" Section Header (always visible)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 25.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
+                const Text(
                   "My Cards",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
-                GestureDetector(
-                  onTap: () async {
-                    await Navigator.push(context,
-                        MaterialPageRoute(builder: (context) => MyPage()));
-                    setState(() {});
-                  },
-                  child: Text(
-                    "Expand",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.blue),
+                // Only show the Expand button if logged in.
+                if (widget.isLoggedIn)
+                  GestureDetector(
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MyPage()),
+                      );
+                      setState(() {});
+                    },
+                    child: const Text(
+                      "Expand",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.blue),
+                    ),
                   ),
-                )
               ],
             ),
           ),
           const SizedBox(height: 10),
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: DatabaseHelper.instance.getCards(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final data = snapshot.data!;
-                return ListView.builder(
-                  itemCount: data.length,
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (context, index) {
-                    // Use the database record's 'id' to build the card.
-                    final cardId = data[index]['id'];
-                    return NewSocialCard(
-                      cardId: cardId,
-                    );
-                  },
-                );
-              },
-            ),
-          ),
+          // "My Cards" Content Area
+          widget.isLoggedIn
+              ? Expanded(
+                  child: FutureBuilder<List<Map<String, dynamic>>>(
+                    future: DatabaseHelper.instance.getCards(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final data = snapshot.data!;
+                      return ListView.builder(
+                        itemCount: data.length,
+                        scrollDirection: Axis.horizontal,
+                        itemBuilder: (context, index) {
+                          final cardId = data[index]['id'];
+                          return NewSocialCard(cardId: cardId);
+                        },
+                      );
+                    },
+                  ),
+                )
+              : Expanded(
+                  child: Center(
+                    child: Text(
+                      "please log in",
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ),
+                ),
         ],
       ),
     );
