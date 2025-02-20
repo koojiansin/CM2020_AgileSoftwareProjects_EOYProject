@@ -1,19 +1,16 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:lgpokemon/models/card.dart'
     as model; // alias to avoid conflicts with Flutter's Card widget
-import 'package:lgpokemon/helpers/database_helper.dart';
 
 class SocialPage extends StatefulWidget {
   const SocialPage({super.key});
 
   @override
-  State<SocialPage> createState() => _MyPageState();
+  State<SocialPage> createState() => _SocialPageState();
 }
 
-class _MyPageState extends State<SocialPage> {
+class _SocialPageState extends State<SocialPage> {
   late Future<List<model.Card>> _cardsFuture;
 
   @override
@@ -29,7 +26,7 @@ class _MyPageState extends State<SocialPage> {
   }
 
   Widget buildCard(model.Card card) {
-    // If the card.imagePath is a Base64 string, use MemoryImage. Otherwise, assume it's an asset path.
+    // If the card.imagePath is a Base64 string, use MemoryImage. Otherwise, use asset.
     final imageWidget = isBase64(card.imagePath)
         ? Image.memory(base64Decode(card.imagePath),
             width: 110, height: 150, fit: BoxFit.cover)
@@ -60,8 +57,54 @@ class _MyPageState extends State<SocialPage> {
   }
 
   bool isBase64(String s) {
-    // Simple check: if string contains "data:" it's not base64, otherwise assume it is, or use length check.
-    return s.length > 100; // adjust as needed
+    // Basic check using length (adjust condition as needed)
+    return s.length > 100;
+  }
+
+  Future<void> _showViewDialog(model.Card card) async {
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Display card image
+              isBase64(card.imagePath)
+                  ? Image.memory(
+                      base64Decode(card.imagePath),
+                      width: 150,
+                      height: 200,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.asset(
+                      card.imagePath,
+                      width: 150,
+                      height: 200,
+                      fit: BoxFit.cover,
+                    ),
+              const SizedBox(height: 10),
+              // Card details
+              Text(
+                card.title,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                card.grade,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Close"),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -80,14 +123,17 @@ class _MyPageState extends State<SocialPage> {
           return GridView.builder(
             padding: const EdgeInsets.all(10),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, // 3 columns per row
+              crossAxisCount: 3, // three cards per row
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 0.66, // approximates a card of 100x150
+              childAspectRatio: 0.66,
             ),
             itemCount: cards.length,
             itemBuilder: (context, index) {
-              return buildCard(cards[index]);
+              return GestureDetector(
+                onTap: () => _showViewDialog(cards[index]),
+                child: buildCard(cards[index]),
+              );
             },
           );
         },
