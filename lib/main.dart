@@ -4,6 +4,24 @@ import 'package:lgpokemon/screens/communication_screen.dart';
 import 'package:lgpokemon/screens/news_screen.dart';
 import 'package:lgpokemon/screens/account_screen.dart';
 
+void main() {
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Ensures Flutter is properly initialized.
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter App',
+      home: const MainScreen(),
+    );
+  }
+}
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
