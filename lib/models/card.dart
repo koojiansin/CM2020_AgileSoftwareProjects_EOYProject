@@ -1,11 +1,13 @@
 import 'package:lgpokemon/helpers/database_helper.dart';
 
 class Card {
+  final int? id; // New field for the database record id
   final String title;
   final String grade;
   final String imagePath;
 
   Card({
+    this.id,
     required this.title,
     required this.grade,
     required this.imagePath,
@@ -14,6 +16,7 @@ class Card {
   // Factory constructor to create a Card from a Map (from the DB)
   factory Card.fromMap(Map<String, dynamic> map) {
     return Card(
+      id: map['id'] as int?, // Assign the id from DB
       title: map['title'],
       grade: map['grade'],
       imagePath: map['imagePath'],

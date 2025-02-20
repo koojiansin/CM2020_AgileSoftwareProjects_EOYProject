@@ -204,9 +204,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
                 GestureDetector(
-                  onTap: () {
-                    Navigator.push(context,
+                  onTap: () async {
+                    await Navigator.push(context,
                         MaterialPageRoute(builder: (context) => MyPage()));
+                    setState(() {});
                   },
                   child: Text(
                     "Expand",

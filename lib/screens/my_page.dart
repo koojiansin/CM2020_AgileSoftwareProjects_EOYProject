@@ -140,6 +140,66 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
+  Future<void> _showDeleteDialog(model.Card card) async {
+    return showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Display card image
+              isBase64(card.imagePath)
+                  ? Image.memory(
+                      base64Decode(card.imagePath),
+                      width: 150,
+                      height: 200,
+                      fit: BoxFit.cover,
+                    )
+                  : Image.asset(
+                      card.imagePath,
+                      width: 150,
+                      height: 200,
+                      fit: BoxFit.cover,
+                    ),
+              const SizedBox(height: 10),
+              // Card details
+              Text(
+                card.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                card.grade,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              // Delete button
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                ),
+                onPressed: () async {
+                  // Make sure to use the correct property for the card id.
+                  await DatabaseHelper.instance.deleteCard(card.id!);
+                  Navigator.of(context).pop();
+                  _refreshCards();
+                },
+                child: const Text(
+                  "Delete",
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -156,14 +216,17 @@ class _MyPageState extends State<MyPage> {
           return GridView.builder(
             padding: const EdgeInsets.all(10),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, // 3 columns per row
+              crossAxisCount: 3,
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 0.66, // approximates a card of 100x150
+              childAspectRatio: 0.66,
             ),
             itemCount: cards.length,
             itemBuilder: (context, index) {
-              return buildCard(cards[index]);
+              return GestureDetector(
+                onTap: () => _showDeleteDialog(cards[index]),
+                child: buildCard(cards[index]),
+              );
             },
           );
         },
