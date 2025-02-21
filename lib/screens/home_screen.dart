@@ -15,37 +15,41 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.9);
-  int _currentIndex = 0;
+  final ValueNotifier<int> _currentIndexNotifier = ValueNotifier<int>(0);
+
+  late Future<List<Map<String, dynamic>>> _socialCardsFuture;
+  late Future<List<Map<String, dynamic>>> _userCardsFuture;
 
   final List<Map<String, String>> latestNews = const [
     {
       "title": "Flutter 3.0 Released!",
-      "excerpt":
-          "The latest version of Flutter introduces new exciting features...",
-      "content":
-          "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
+      "excerpt": "The latest version of Flutter introduces new exciting features...",
+      "content": "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
       "author": "John Doe",
       "date": "Feb 17, 2025"
     },
     {
       "title": "Dart 3 Announced",
-      "excerpt":
-          "Dart 3 is here with null safety and enhanced compiler optimizations...",
-      "content":
-          "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
+      "excerpt": "Dart 3 is here with null safety and enhanced compiler optimizations...",
+      "content": "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
       "author": "Jane Smith",
       "date": "Feb 16, 2025"
     },
     {
       "title": "AI in Mobile Apps",
-      "excerpt":
-          "Artificial Intelligence is revolutionizing mobile app development...",
-      "content":
-          "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
+      "excerpt": "Artificial Intelligence is revolutionizing mobile app development...",
+      "content": "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
       "author": "Alex Johnson",
       "date": "Feb 15, 2025"
     }
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _socialCardsFuture = DatabaseHelper.instance.getSocialCards();
+    _userCardsFuture = DatabaseHelper.instance.getUserCards();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,14 +59,12 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           // News Slider
           SizedBox(
-            height: 200,
+            height: 150,
             child: PageView.builder(
               controller: _pageController,
               itemCount: latestNews.length,
               onPageChanged: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
+                _currentIndexNotifier.value = index;
               },
               itemBuilder: (context, index) {
                 final news = latestNews[index];
@@ -126,58 +128,39 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          // Dots Indicator for the News Slider
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              latestNews.length,
-              (index) => AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 8,
-                width: _currentIndex == index ? 16 : 8,
-                decoration: BoxDecoration(
-                  color:
-                      _currentIndex == index ? Colors.deepPurple : Colors.grey,
-                  borderRadius: BorderRadius.circular(4),
+          // Dots Indicator
+          ValueListenableBuilder<int>(
+            valueListenable: _currentIndexNotifier,
+            builder: (context, currentIndex, child) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  latestNews.length,
+                      (index) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    height: 8,
+                    width: currentIndex == index ? 16 : 8,
+                    decoration: BoxDecoration(
+                      color: currentIndex == index ? Colors.deepPurple : Colors.grey,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           const SizedBox(height: 20),
           // Social Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  "Socials",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-                ),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => const SocialPage()),
-                    );
-                  },
-                  child: const Text(
-                    "Expand",
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.blue),
-                  ),
-                )
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Social Cards Content Area
+          SectionHeader(title: "Socials", onExpand: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SocialPage()),
+            );
+          }),
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: DatabaseHelper.instance.getSocialCards(),
+              future: _socialCardsFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -187,7 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: data.length,
                   scrollDirection: Axis.horizontal,
                   itemBuilder: (context, index) {
-                    // Use the database record's 'id' to build the card.
                     final cardId = data[index]['id'];
                     return NewSocialCard(cardId: cardId);
                   },
@@ -196,67 +178,81 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          // "My Cards" Section Header (always visible)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Text(
-                  "My Cards",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
-                ),
-                if (widget.isLoggedIn)
-                  GestureDetector(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MyPage()),
-                      );
-                      setState(() {});
-                    },
-                    child: const Text(
-                      "Expand",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, color: Colors.blue),
-                    ),
-                  ),
-              ],
-            ),
+          // "My Cards" Section
+          SectionHeader(
+            title: "My Cards",
+            onExpand: widget.isLoggedIn
+                ? () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const MyPage()),
+              );
+              if (result == true) {
+                setState(() {
+                  _userCardsFuture = DatabaseHelper.instance.getUserCards();
+                });
+              }
+            }
+                : null,
           ),
-          const SizedBox(height: 10),
-          // "My Cards" Content Area
           widget.isLoggedIn
               ? Expanded(
-                  child: FutureBuilder<List<Map<String, dynamic>>>(
-                    future: DatabaseHelper.instance.getUserCards(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
-                      final data = snapshot.data!;
-                      return ListView.builder(
-                        itemCount: data.length,
-                        scrollDirection: Axis.horizontal,
-                        itemBuilder: (context, index) {
-                          final cardId = data[index]['id'];
-                          // Specify isUserCard: true to fetch from usercards table.
-                          return NewSocialCard(
-                              cardId: cardId, isUserCard: true);
-                        },
-                      );
-                    },
-                  ),
-                )
-              : Expanded(
-                  child: Center(
-                    child: Text(
-                      "please log in",
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  ),
-                ),
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _userCardsFuture,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final data = snapshot.data!;
+                return ListView.builder(
+                  itemCount: data.length,
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (context, index) {
+                    final cardId = data[index]['id'];
+                    return NewSocialCard(cardId: cardId, isUserCard: true);
+                  },
+                );
+              },
+            ),
+          )
+              : const Expanded(
+            child: Center(
+              child: Text(
+                "Please log in",
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Custom Section Header Widget
+class SectionHeader extends StatelessWidget {
+  final String title;
+  final VoidCallback? onExpand;
+
+  const SectionHeader({required this.title, this.onExpand, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+          if (onExpand != null)
+            GestureDetector(
+              onTap: onExpand,
+              child: const Text(
+                "Expand",
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+            ),
         ],
       ),
     );
