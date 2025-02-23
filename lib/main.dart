@@ -3,6 +3,7 @@ import 'package:lgpokemon/screens/home_screen.dart';
 import 'package:lgpokemon/screens/friend_request_screen.dart';
 import 'package:lgpokemon/screens/news_screen.dart';
 import 'package:lgpokemon/screens/account_screen.dart';
+import 'package:lgpokemon/screens/pokemon_cards_screen.dart'; // Import Pokémon Cards screen
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +79,17 @@ class _MainScreenState extends State<MainScreen> {
             _selectedIndex = index;
           });
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PokemonCardsScreen()),
+          );
+        },
+        child: const Icon(Icons.catching_pokemon),
+        tooltip: "View Pokémon Cards (swsh1)",
+        backgroundColor: Colors.deepPurple,
       ),
     );
   }

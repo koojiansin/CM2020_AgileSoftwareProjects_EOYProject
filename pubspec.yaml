@@ -37,6 +37,8 @@ dependencies:
   sqflite: ^2.2.8
   path: ^1.8.3
   image_picker: ^0.8.7
+  http: ^0.13.5
+  shared_preferences: ^2.2.0
 
 dev_dependencies:
   flutter_test:
