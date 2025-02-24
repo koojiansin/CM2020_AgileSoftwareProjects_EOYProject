@@ -4,10 +4,17 @@ import 'package:lgpokemon/helpers/database_helper.dart';
 import 'package:lgpokemon/screens/my_page.dart';
 import 'package:lgpokemon/screens/news_detail_screen.dart';
 import 'package:lgpokemon/screens/social_page.dart';
+import 'package:lgpokemon/screens/pokemon_cards_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final bool isLoggedIn;
-  const HomeScreen({super.key, required this.isLoggedIn});
+  final String currentUser; // current logged-in username
+
+  const HomeScreen({
+    super.key,
+    required this.isLoggedIn,
+    required this.currentUser,
+  });
 
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -17,38 +24,29 @@ class _HomeScreenState extends State<HomeScreen> {
   final PageController _pageController = PageController(viewportFraction: 0.9);
   final ValueNotifier<int> _currentIndexNotifier = ValueNotifier<int>(0);
 
-  late Future<List<Map<String, dynamic>>> _socialCardsFuture;
+  late Future<List<Map<String, dynamic>>> _friendCardsFuture;
   late Future<List<Map<String, dynamic>>> _userCardsFuture;
 
   final List<Map<String, String>> latestNews = const [
     {
       "title": "Flutter 3.0 Released!",
-      "excerpt": "The latest version of Flutter introduces new exciting features...",
-      "content": "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
+      "excerpt":
+          "The latest version of Flutter introduces new exciting features...",
+      "content":
+          "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
       "author": "John Doe",
       "date": "Feb 17, 2025"
     },
-    {
-      "title": "Dart 3 Announced",
-      "excerpt": "Dart 3 is here with null safety and enhanced compiler optimizations...",
-      "content": "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
-      "author": "Jane Smith",
-      "date": "Feb 16, 2025"
-    },
-    {
-      "title": "AI in Mobile Apps",
-      "excerpt": "Artificial Intelligence is revolutionizing mobile app development...",
-      "content": "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
-      "author": "Alex Johnson",
-      "date": "Feb 15, 2025"
-    }
+    // ... additional news items if needed
   ];
 
   @override
   void initState() {
     super.initState();
-    _socialCardsFuture = DatabaseHelper.instance.getSocialCards();
-    _userCardsFuture = DatabaseHelper.instance.getUserCards();
+    _friendCardsFuture =
+        DatabaseHelper.instance.getFriendCards(widget.currentUser);
+    _userCardsFuture =
+        DatabaseHelper.instance.getUserCardsFor(widget.currentUser);
   }
 
   @override
@@ -63,24 +61,26 @@ class _HomeScreenState extends State<HomeScreen> {
             child: PageView.builder(
               controller: _pageController,
               itemCount: latestNews.length,
-              onPageChanged: (index) {
-                _currentIndexNotifier.value = index;
-              },
+              onPageChanged: (index) => _currentIndexNotifier.value = index,
               itemBuilder: (context, index) {
                 final news = latestNews[index];
                 return GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => NewsDetailScreen(
-                          title: news["title"] ?? "No Title",
-                          content: news["content"] ?? "No Content Available",
-                          author: news["author"] ?? "Unknown Author",
-                          date: news["date"] ?? "Unknown Date",
+                    try {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => NewsDetailScreen(
+                            title: news["title"] ?? "No Title",
+                            content: news["content"] ?? "No Content Available",
+                            author: news["author"] ?? "Unknown Author",
+                            date: news["date"] ?? "Unknown Date",
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    } catch (e) {
+                      print("Navigation error: $e");
+                    }
                   },
                   child: Card(
                     shape: RoundedRectangleBorder(
@@ -136,13 +136,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
                   latestNews.length,
-                      (index) => AnimatedContainer(
+                  (index) => AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     height: 8,
                     width: currentIndex == index ? 16 : 8,
                     decoration: BoxDecoration(
-                      color: currentIndex == index ? Colors.deepPurple : Colors.grey,
+                      color: currentIndex == index
+                          ? Colors.deepPurple
+                          : Colors.grey,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -151,85 +153,136 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           const SizedBox(height: 20),
-          // Social Section
-          SectionHeader(title: "Socials", onExpand: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SocialPage()),
-            );
-          }),
+          // Friend Cards Section – Shows cards of friends.
+          SectionHeader(
+            title: "Friend Cards",
+            onExpand: () {
+              try {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        SocialPage(currentUser: widget.currentUser),
+                  ),
+                );
+              } catch (e) {
+                print("Error navigating to SocialPage: $e");
+              }
+            },
+          ),
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _socialCardsFuture,
+              future: _friendCardsFuture,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final data = snapshot.data!;
+                if (snapshot.hasError) {
+                  debugPrint(
+                      "Error in friend cards FutureBuilder: ${snapshot.error}");
+                  return Center(
+                      child: Text("Error: ${snapshot.error.toString()}"));
+                }
+                final data = snapshot.data ?? [];
+                if (data.isEmpty) {
+                  return const Center(
+                      child: Text("No friend cards available."));
+                }
                 return ListView.builder(
-                  itemCount: data.length,
                   scrollDirection: Axis.horizontal,
+                  itemCount: data.length,
                   itemBuilder: (context, index) {
-                    final cardId = data[index]['id'];
-                    return NewSocialCard(cardId: cardId);
+                    try {
+                      final cardId = data[index]['id'];
+                      return NewSocialCard(cardId: cardId, isUserCard: true);
+                    } catch (error, stackTrace) {
+                      debugPrint(
+                          "Error building friend card at index $index: $error");
+                      debugPrint("$stackTrace");
+                      return const SizedBox.shrink();
+                    }
                   },
                 );
               },
             ),
           ),
           const SizedBox(height: 10),
-          // "My Cards" Section
+          // "My Cards" Section – Only show cards for the current user.
           SectionHeader(
             title: "My Cards",
             onExpand: widget.isLoggedIn
                 ? () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const MyPage()),
-              );
-              if (result == true) {
-                setState(() {
-                  _userCardsFuture = DatabaseHelper.instance.getUserCards();
-                });
-              }
-            }
+                    try {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MyPage(currentUser: widget.currentUser),
+                        ),
+                      );
+                      setState(() {
+                        _userCardsFuture = DatabaseHelper.instance
+                            .getUserCardsFor(widget.currentUser);
+                      });
+                    } catch (e, stackTrace) {
+                      debugPrint("Error navigating to MyPage: $e");
+                      debugPrint("$stackTrace");
+                    }
+                  }
                 : null,
           ),
+
           widget.isLoggedIn
               ? Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _userCardsFuture,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final data = snapshot.data!;
-                return ListView.builder(
-                  itemCount: data.length,
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (context, index) {
-                    final cardId = data[index]['id'];
-                    return NewSocialCard(cardId: cardId, isUserCard: true);
-                  },
-                );
-              },
-            ),
-          )
+                  child: FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _userCardsFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        debugPrint(
+                            "Error in user cards FutureBuilder: ${snapshot.error}");
+                        return Center(
+                            child: Text("Error: ${snapshot.error.toString()}"));
+                      }
+                      final data = snapshot.data ?? [];
+                      if (data.isEmpty) {
+                        return const Center(child: Text("No cards added yet."));
+                      }
+                      return ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: data.length,
+                        itemBuilder: (context, index) {
+                          try {
+                            final cardId = data[index]['id'];
+                            return NewSocialCard(
+                                cardId: cardId, isUserCard: true);
+                          } catch (error, stackTrace) {
+                            debugPrint(
+                                "Error building my card at index $index: $error");
+                            debugPrint("$stackTrace");
+                            return const SizedBox.shrink();
+                          }
+                        },
+                      );
+                    },
+                  ),
+                )
               : const Expanded(
-            child: Center(
-              child: Text(
-                "Please log in",
-                style: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-            ),
-          ),
+                  child: Center(
+                    child: Text(
+                      "Please log in",
+                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                    ),
+                  ),
+                ),
         ],
       ),
     );
   }
 }
 
-// Custom Section Header Widget
 class SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback? onExpand;
@@ -244,13 +297,25 @@ class SectionHeader extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
+          ),
           if (onExpand != null)
-            GestureDetector(
+            InkWell(
               onTap: onExpand,
-              child: const Text(
-                "Expand",
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Text(
+                  "Expand",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
               ),
             ),
         ],

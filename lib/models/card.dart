@@ -16,9 +16,9 @@ class Card {
   factory Card.fromMap(Map<String, dynamic> map) {
     return Card(
       id: map['id'] as int?,
-      title: map['title'],
-      grade: map['grade'],
-      imagePath: map['imagePath'],
+      title: map['title'] as String,
+      grade: map['grade'] as String,
+      imagePath: map['imagePath'] as String,
     );
   }
 
@@ -29,10 +29,10 @@ class Card {
     return data.map((map) => Card.fromMap(map)).toList();
   }
 
-  // Fetch all user cards.
-  static Future<List<Card>> fetchAllUserCards() async {
+  // Fetch all user cards for a specific username.
+  static Future<List<Card>> fetchUserCards(String username) async {
     final List<Map<String, dynamic>> data =
-        await DatabaseHelper.instance.getUserCards();
+        await DatabaseHelper.instance.getUserCardsFor(username);
     return data.map((map) => Card.fromMap(map)).toList();
   }
 }

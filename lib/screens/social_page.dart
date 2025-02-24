@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:lgpokemon/models/card.dart'
-    as model; // alias to avoid conflicts with Flutter's Card widget
+import 'package:lgpokemon/models/card.dart' as model;
 import 'package:lgpokemon/Components/card_item.dart';
+import 'package:lgpokemon/helpers/database_helper.dart';
 
 class SocialPage extends StatefulWidget {
-  const SocialPage({super.key});
+  final String currentUser;
+  const SocialPage({super.key, required this.currentUser});
 
   @override
   State<SocialPage> createState() => _SocialPageState();
@@ -22,8 +23,26 @@ class _SocialPageState extends State<SocialPage> {
 
   void _refreshCards() {
     setState(() {
-      _cardsFuture = model.Card.fetchAllSocialCards();
+      _cardsFuture = _fetchFriendCards();
     });
+  }
+
+  Future<List<model.Card>> _fetchFriendCards() async {
+    final data =
+        await DatabaseHelper.instance.getFriendCards(widget.currentUser);
+    return data.map((map) => model.Card.fromMap(map)).toList();
+  }
+
+  // Helper method to check if a string is base64 encoded.
+  bool _isBase64(String str) {
+    // If the string appears to be an asset path, don't try decoding.
+    if (str.startsWith("lib/") || str.startsWith("assets/")) return false;
+    try {
+      base64Decode(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> _showViewDialog(model.Card card) async {
@@ -34,8 +53,7 @@ class _SocialPageState extends State<SocialPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Display card image
-              (card.imagePath.length > 100)
+              _isBase64(card.imagePath)
                   ? Image.memory(
                       base64Decode(card.imagePath),
                       width: 150,
@@ -49,7 +67,6 @@ class _SocialPageState extends State<SocialPage> {
                       fit: BoxFit.cover,
                     ),
               const SizedBox(height: 10),
-              // Card details
               Text(
                 card.title,
                 style:
@@ -74,17 +91,19 @@ class _SocialPageState extends State<SocialPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ...existing build code...
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Social Cards'),
+        title: const Text('Friend Cards'),
       ),
       body: FutureBuilder<List<model.Card>>(
         future: _cardsFuture,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
           final cards = snapshot.data!;
+          if (cards.isEmpty)
+            return const Center(child: Text("No friend cards available."));
           return GridView.builder(
             padding: const EdgeInsets.all(10),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

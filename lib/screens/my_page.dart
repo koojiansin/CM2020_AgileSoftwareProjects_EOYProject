@@ -7,7 +7,8 @@ import 'package:lgpokemon/helpers/database_helper.dart';
 import 'package:lgpokemon/Components/card_item.dart';
 
 class MyPage extends StatefulWidget {
-  const MyPage({super.key});
+  final String currentUser;
+  const MyPage({super.key, required this.currentUser});
 
   @override
   State<MyPage> createState() => _MyPageState();
@@ -24,19 +25,29 @@ class _MyPageState extends State<MyPage> {
 
   void _refreshCards() {
     setState(() {
-      _cardsFuture = model.Card.fetchAllUserCards();
+      _cardsFuture = model.Card.fetchUserCards(widget.currentUser);
     });
+  }
+
+  // Helper method to check if a string is base64 encoded.
+  bool _isBase64(String str) {
+    // If the string appears to be an asset path, don't try decoding.
+    if (str.startsWith("lib/") || str.startsWith("assets/")) return false;
+    try {
+      base64Decode(str);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> _handleAddCard(BuildContext context) async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.camera);
-    if (pickedFile == null) {
-      return;
-    }
+    if (pickedFile == null) return;
+
     final bytes = await pickedFile.readAsBytes();
     final base64Image = base64Encode(bytes);
-
     final titleController = TextEditingController();
     final gradeController = TextEditingController();
 
@@ -88,16 +99,15 @@ class _MyPageState extends State<MyPage> {
                   );
                   return;
                 }
-                // Tag the card with an account username (for example, 'username1')
                 final newCard = {
                   'title': title,
                   'grade': grade,
                   'imagePath': base64Image,
-                  'username': 'username1',
+                  'username': widget.currentUser,
                 };
                 await DatabaseHelper.instance.insertUserCard(newCard);
-                Navigator.of(context).pop();
                 _refreshCards();
+                Navigator.of(context).pop(true);
               },
               child: const Text("Add"),
             ),
@@ -115,7 +125,7 @@ class _MyPageState extends State<MyPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              (card.imagePath.length > 100)
+              _isBase64(card.imagePath)
                   ? Image.memory(
                       base64Decode(card.imagePath),
                       width: 150,
@@ -131,10 +141,8 @@ class _MyPageState extends State<MyPage> {
               const SizedBox(height: 10),
               Text(
                 card.title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 4),
               Text(
@@ -143,9 +151,7 @@ class _MyPageState extends State<MyPage> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 onPressed: () async {
                   await DatabaseHelper.instance.deleteUserCard(card.id!);
                   Navigator.of(context).pop();
@@ -165,6 +171,7 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ...existing build code...
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Cards'),
@@ -172,9 +179,8 @@ class _MyPageState extends State<MyPage> {
       body: FutureBuilder<List<model.Card>>(
         future: _cardsFuture,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
-          }
           final cards = snapshot.data!;
           return GridView.builder(
             padding: const EdgeInsets.all(10),

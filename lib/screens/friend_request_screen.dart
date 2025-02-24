@@ -11,105 +11,6 @@ class FriendRequestScreen extends StatefulWidget {
 }
 
 class _FriendRequestScreenState extends State<FriendRequestScreen> {
-  Future<void> _showAddFriendDialog() async {
-    final TextEditingController _dialogFriendCodeController =
-        TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Add Friend"),
-          content: TextField(
-            controller: _dialogFriendCodeController,
-            decoration: const InputDecoration(
-              labelText: "Friend Code",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final friendCode = _dialogFriendCodeController.text.trim();
-                if (friendCode.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("Please enter a friend code.")),
-                  );
-                  return;
-                }
-                // Validate that the provided friend code exists.
-                final targetAccount = await DatabaseHelper.instance
-                    .getAccountByFriendCode(friendCode);
-                if (targetAccount == null) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Friend code not found.")),
-                  );
-                  return;
-                }
-                // Get current user's account details.
-                final currentAccount = await DatabaseHelper.instance
-                    .getAccountByUsername(widget.currentUser);
-                if (currentAccount == null) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Current account not found.")),
-                  );
-                  return;
-                }
-                // Prevent self-friendship.
-                if (friendCode == currentAccount['friendCode']) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("You cannot add yourself as a friend.")),
-                  );
-                  return;
-                }
-                // Check if a friend request is already sent or friendship already exists.
-                final existingRequests = await DatabaseHelper.instance
-                    .getFriendRequestsByOwner(widget.currentUser);
-                if (existingRequests
-                    .any((req) => req['recipientFriendCode'] == friendCode)) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            "Friend request already sent or already friends.")),
-                  );
-                  return;
-                }
-                try {
-                  await DatabaseHelper.instance
-                      .insertFriendRequest(widget.currentUser, friendCode);
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("Friend request sent successfully.")),
-                  );
-                  setState(() {}); // refresh the list
-                } catch (e) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text("Failed to send friend request.")),
-                  );
-                }
-              },
-              child: const Text("Send Request"),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   // Fetch incoming friend requests.
   Future<Map<String, List<Map<String, dynamic>>>>
       _fetchFriendRequestData() async {
@@ -125,30 +26,23 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   // Accept a friend request given its requestId.
   Future<void> _acceptFriendRequest(int requestId) async {
     try {
+      // Accept the original friend request.
       await DatabaseHelper.instance.acceptFriendRequest(requestId);
-      // Retrieve and create the reciprocal record if needed.
-      final req = await DatabaseHelper.instance.getFriendRequestById(requestId);
-      if (req != null) {
-        final String senderUsername = req['sender'] as String;
+
+      // Retrieve the accepted friend request to obtain the sender.
+      final requestRecord =
+          await DatabaseHelper.instance.getFriendRequestById(requestId);
+      if (requestRecord != null) {
+        final String friendSender = requestRecord['sender'] as String;
+        // Look up the sender's account information to get their friend code.
         final senderAccount =
-            await DatabaseHelper.instance.getAccountByUsername(senderUsername);
+            await DatabaseHelper.instance.getAccountByUsername(friendSender);
         if (senderAccount != null) {
           final String senderFriendCode = senderAccount['friendCode'] as String;
-          final reciprocalRequests = await DatabaseHelper.instance
-              .getFriendRequestsByOwner(widget.currentUser);
-          bool alreadyInserted = reciprocalRequests.any((r) =>
-              r['recipientFriendCode'] == senderFriendCode &&
-              r['status'] == 'accepted');
-          if (!alreadyInserted) {
-            await DatabaseHelper.instance
-                .insertFriendRequest(widget.currentUser, senderFriendCode);
-            final newReciprocals = await DatabaseHelper.instance
-                .getFriendRequestsByOwner(widget.currentUser);
-            final newReciprocal = newReciprocals.firstWhere(
-                (r) => r['recipientFriendCode'] == senderFriendCode);
-            await DatabaseHelper.instance
-                .acceptFriendRequest(newReciprocal['id'] as int);
-          }
+          // Insert reciprocal friendship: current user (the one who accepted) becomes sender,
+          // and the sender's friend code becomes recipient.
+          await DatabaseHelper.instance
+              .insertReciprocalFriendship(widget.currentUser, senderFriendCode);
         }
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -173,6 +67,22 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Failed to decline friend request.")),
+      );
+    }
+  }
+
+  // Delete a friendship for both sides.
+  Future<void> _deleteFriend(String friendUsername) async {
+    try {
+      await DatabaseHelper.instance
+          .deleteFriendship(widget.currentUser, friendUsername);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Friend deleted.")),
+      );
+      setState(() {});
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to delete friend.")),
       );
     }
   }
@@ -216,10 +126,33 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                   else
                     Column(
                       children: friends.map((req) {
-                        final String sender = req['sender'] as String;
+                        // The accepted friend row comes from incoming friend requests,
+                        // so the friend’s username is in the 'sender' field.
+                        final String friendUsername = req['sender'] as String;
                         return ListTile(
-                          title: Text("Friend Code: $sender"),
+                          title: Text("Friend Code: $friendUsername"),
                           subtitle: const Text("Accepted"),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Chat button (placeholder)
+                              IconButton(
+                                icon: const Icon(Icons.chat),
+                                onPressed: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text("Chat feature coming soon.")),
+                                  );
+                                },
+                              ),
+                              // Delete friend button.
+                              IconButton(
+                                icon: const Icon(Icons.delete),
+                                onPressed: () => _deleteFriend(friendUsername),
+                              ),
+                            ],
+                          ),
                         );
                       }).toList(),
                     ),
@@ -253,7 +186,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                                 onPressed: () =>
                                     _declineFriendRequest(requestId),
                                 style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red),
+                                  backgroundColor: Colors.red,
+                                ),
                                 child: const Text("Decline"),
                               ),
                             ],
@@ -266,10 +200,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
             ),
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddFriendDialog,
-        child: const Icon(Icons.person_add),
       ),
     );
   }
