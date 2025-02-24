@@ -1,61 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:lgpokemon/helpers/database_helper.dart';
 import 'news_detail_screen.dart';
 
-class NewsScreen extends StatelessWidget {
+class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
 
-  final List<Map<String, String>> newsArticles = const [
-    {
-      "title": "Flutter 3.0 Released!",
-      "excerpt": "The latest version of Flutter introduces new exciting features...",
-      "content": "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
-      "author": "John Doe",
-      "date": "Feb 17, 2025"
-    },
-    {
-      "title": "Dart 3 Announced",
-      "excerpt": "Dart 3 is here with null safety and enhanced compiler optimizations...",
-      "content": "Dart 3 is now officially available, bringing faster performance and new modern syntax.",
-      "author": "Jane Smith",
-      "date": "Feb 16, 2025"
-    },
-    {
-      "title": "AI in Mobile Apps",
-      "excerpt": "Artificial Intelligence is revolutionizing mobile app development...",
-      "content": "With AI, apps can now provide personalized experiences, enhanced automation, and improved UI interactions.",
-      "author": "Alex Johnson",
-      "date": "Feb 15, 2025"
-    }
-  ];
+  @override
+  State<NewsScreen> createState() => _NewsScreenState();
+}
+
+class _NewsScreenState extends State<NewsScreen> {
+  late Future<List<Map<String, dynamic>>> _newsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _newsFuture = DatabaseHelper.instance.getNews();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("News")),
-      body: ListView.builder(
-        itemCount: newsArticles.length,
-        itemBuilder: (context, index) {
-          final news = newsArticles[index];
-          return Card(
-            margin: const EdgeInsets.all(10),
-            child: ListTile(
-              title: Text(news["title"] ?? "No Title", style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(news["excerpt"] ?? "No Excerpt"),
-              trailing: const Icon(Icons.arrow_forward),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => NewsDetailScreen(
-                      title: news["title"] ?? "No Title",
-                      content: news["content"] ?? "No Content Available",
-                      author: news["author"] ?? "Unknown Author",
-                      date: news["date"] ?? "Unknown Date",
-                    ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _newsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
+          final data = snapshot.data ?? [];
+          if (data.isEmpty) {
+            return const Center(child: Text("No news available."));
+          }
+          return ListView.builder(
+            itemCount: data.length,
+            itemBuilder: (context, index) {
+              final news = data[index];
+              return Card(
+                margin: const EdgeInsets.all(10),
+                child: ListTile(
+                  leading: Image.asset(
+                    news['imgPath'],
+                    width: 80,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.broken_image),
                   ),
-                );
-              },
-            ),
+                  title: Text(
+                    news['title'],
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    news['description'],
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => NewsDetailScreen(
+                          imgPath: news['imgPath'],
+                          title: news['title'],
+                          description: news['description'],
+                          date: news['date'],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
           );
         },
       ),

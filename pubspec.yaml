@@ -76,6 +76,9 @@ flutter:
     - lib/images/Charmeleon.jpg
     - lib/images/Wartortle.jpg
     - lib/images/Ivysaur.jpg
+    - lib/images/News1.png
+    - lib/images/News2.png
+    - lib/images/News3.png
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
 

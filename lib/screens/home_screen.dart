@@ -26,19 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   late Future<List<Map<String, dynamic>>> _friendCardsFuture;
   late Future<List<Map<String, dynamic>>> _userCardsFuture;
-
-  final List<Map<String, String>> latestNews = const [
-    {
-      "title": "Flutter 3.0 Released!",
-      "excerpt":
-          "The latest version of Flutter introduces new exciting features...",
-      "content":
-          "Flutter 3.0 brings better performance, new widgets, and stability across platforms.",
-      "author": "John Doe",
-      "date": "Feb 17, 2025"
-    },
-    // ... additional news items if needed
-  ];
+  late Future<List<Map<String, dynamic>>> _newsFuture;
 
   @override
   void initState() {
@@ -47,108 +35,115 @@ class _HomeScreenState extends State<HomeScreen> {
         DatabaseHelper.instance.getFriendCards(widget.currentUser);
     _userCardsFuture =
         DatabaseHelper.instance.getUserCardsFor(widget.currentUser);
+    _newsFuture = DatabaseHelper.instance.getNews();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Home")),
+      appBar: AppBar(centerTitle: true, title: const Text("Home")),
       body: Column(
         children: [
-          // News Slider
-          SizedBox(
-            height: 150,
-            child: PageView.builder(
-              controller: _pageController,
-              itemCount: latestNews.length,
-              onPageChanged: (index) => _currentIndexNotifier.value = index,
-              itemBuilder: (context, index) {
-                final news = latestNews[index];
-                return GestureDetector(
-                  onTap: () {
-                    try {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NewsDetailScreen(
-                            title: news["title"] ?? "No Title",
-                            content: news["content"] ?? "No Content Available",
-                            author: news["author"] ?? "Unknown Author",
-                            date: news["date"] ?? "Unknown Date",
+          // News Slider loaded from DB.
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _newsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                    height: 150,
+                    child: Center(child: CircularProgressIndicator()));
+              }
+              if (snapshot.hasError) {
+                return SizedBox(
+                    height: 150,
+                    child: Center(
+                        child: Text("Error: ${snapshot.error.toString()}")));
+              }
+              final newsData = snapshot.data ?? [];
+              if (newsData.isEmpty) {
+                return const SizedBox(
+                    height: 150,
+                    child: Center(child: Text("No news available.")));
+              }
+              return Column(
+                children: [
+                  AspectRatio(
+                    aspectRatio: 728 / 381, // Approximately 1.91
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: newsData.length,
+                      onPageChanged: (index) =>
+                          _currentIndexNotifier.value = index,
+                      itemBuilder: (context, index) {
+                        final news = newsData[index];
+                        return GestureDetector(
+                          onTap: () {
+                            try {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => NewsDetailScreen(
+                                    title: news["title"] ?? "No Title",
+                                    description: news["description"] ??
+                                        "No Content Available",
+                                    imgPath: news["imgPath"] ??
+                                        'assets/images/news_placeholder.png',
+                                    date: news["date"] ?? "Unknown Date",
+                                  ),
+                                ),
+                              );
+                            } catch (e) {
+                              print("Navigation error: $e");
+                            }
+                          },
+                          child: Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 5,
+                            margin: const EdgeInsets.symmetric(horizontal: 5),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.asset(
+                                news["imgPath"] ??
+                                    'assets/images/news_placeholder.png',
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.broken_image, size: 150),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Dots Indicator for news slider.
+                  ValueListenableBuilder<int>(
+                    valueListenable: _currentIndexNotifier,
+                    builder: (context, currentIndex, child) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          newsData.length,
+                          (index) => AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 8,
+                            width: currentIndex == index ? 16 : 8,
+                            decoration: BoxDecoration(
+                              color: currentIndex == index
+                                  ? Colors.deepPurple
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
                         ),
                       );
-                    } catch (e) {
-                      print("Navigation error: $e");
-                    }
-                  },
-                  child: Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 5,
-                    margin: const EdgeInsets.symmetric(horizontal: 5),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: const LinearGradient(
-                          colors: [Colors.deepPurple, Colors.blueAccent],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            news["title"] ?? "No Title",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            news["excerpt"] ?? "No Excerpt",
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
+                    },
                   ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Dots Indicator
-          ValueListenableBuilder<int>(
-            valueListenable: _currentIndexNotifier,
-            builder: (context, currentIndex, child) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  latestNews.length,
-                  (index) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    height: 8,
-                    width: currentIndex == index ? 16 : 8,
-                    decoration: BoxDecoration(
-                      color: currentIndex == index
-                          ? Colors.deepPurple
-                          : Colors.grey,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
+                ],
               );
             },
           ),
@@ -156,19 +151,21 @@ class _HomeScreenState extends State<HomeScreen> {
           // Friend Cards Section – Shows cards of friends.
           SectionHeader(
             title: "Friend Cards",
-            onExpand: () {
-              try {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SocialPage(currentUser: widget.currentUser),
-                  ),
-                );
-              } catch (e) {
-                print("Error navigating to SocialPage: $e");
-              }
-            },
+            onExpand: widget.isLoggedIn
+                ? () {
+                    try {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              SocialPage(currentUser: widget.currentUser),
+                        ),
+                      );
+                    } catch (e) {
+                      print("Error navigating to SocialPage: $e");
+                    }
+                  }
+                : null,
           ),
           Expanded(
             child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -231,7 +228,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   }
                 : null,
           ),
-
           widget.isLoggedIn
               ? Expanded(
                   child: FutureBuilder<List<Map<String, dynamic>>>(
@@ -292,29 +288,26 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 25.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             title,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 24,
             ),
           ),
           if (onExpand != null)
-            InkWell(
-              onTap: onExpand,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Text(
-                  "Expand",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
+            TextButton(
+              onPressed: onExpand,
+              child: Text(
+                "Expand",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
                 ),
               ),
             ),

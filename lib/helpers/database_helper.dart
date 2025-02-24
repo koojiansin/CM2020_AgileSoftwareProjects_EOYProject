@@ -30,7 +30,6 @@ class DatabaseHelper {
   Future _createDB(Database db, int version) async {
     const idType = 'INTEGER PRIMARY KEY AUTOINCREMENT';
     const textType = 'TEXT NOT NULL';
-
     // Create the socialcards table.
     await db.execute('''
       CREATE TABLE socialcards (
@@ -61,6 +60,43 @@ class DatabaseHelper {
     ];
     for (var card in defaultSocialCards) {
       await db.insert('socialcards', card);
+    }
+
+    await db.execute('''
+      CREATE TABLE news (
+        id $idType,
+        imgPath $textType,
+        title $textType,
+        description $textType,
+        date $textType
+      )
+    ''');
+
+    // Seed the news table with sample news.
+    final defaultNews = [
+      {
+        'imgPath': 'lib/images/News1.png',
+        'title': 'Release Time and Countdown',
+        'description':
+            'The release time for the new game has been announced. Check out the countdown timer.',
+        'date': 'Feb 17, 2025',
+      },
+      {
+        'imgPath': 'lib/images/News2.png',
+        'title': 'Maintenance Status',
+        'description': 'Maintenance status and updates.',
+        'date': 'Feb 16, 2025',
+      },
+      {
+        'imgPath': 'lib/images/News3.png',
+        'title': 'Latest News',
+        'description':
+            'The latest news and updates for the Community and Shops.',
+        'date': 'Feb 15, 2025',
+      },
+    ];
+    for (var news in defaultNews) {
+      await db.insert('news', news);
     }
 
     // Create the usercards table with a username column.
@@ -407,5 +443,11 @@ class DatabaseHelper {
   Future close() async {
     final db = await instance.database;
     db.close();
+  }
+
+// ----- News CRUD -----
+  Future<List<Map<String, dynamic>>> getNews() async {
+    final db = await instance.database;
+    return await db.query('news', orderBy: 'id DESC');
   }
 }

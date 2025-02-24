@@ -89,7 +89,10 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter App'),
+        centerTitle: true,
+        title: const Text(
+          'LG Pokémon',
+        ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: pages[_selectedIndex],
