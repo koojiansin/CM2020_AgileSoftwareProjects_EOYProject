@@ -41,7 +41,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text("Home")),
       body: Column(
         children: [
           // News Slider loaded from DB.
@@ -68,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return Column(
                 children: [
                   AspectRatio(
-                    aspectRatio: 728 / 381, // Approximately 1.91
+                    aspectRatio: 2.1 / 1, // Approximately 1.91
                     child: PageView.builder(
                       controller: _pageController,
                       itemCount: newsData.length,
@@ -147,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 5),
           // Friend Cards Section – Shows cards of friends.
           SectionHeader(
             title: "Friend Cards",
@@ -203,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           // "My Cards" Section – Only show cards for the current user.
           SectionHeader(
             title: "My Cards",
@@ -289,8 +288,8 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25.0, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,

@@ -21,7 +21,6 @@ class _NewsScreenState extends State<NewsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("News")),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _newsFuture,
         builder: (context, snapshot) {

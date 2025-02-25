@@ -90,7 +90,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Friend Requests")),
       body: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
         future: _fetchFriendRequestData(),
         builder: (context, snapshot) {
