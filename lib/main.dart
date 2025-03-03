@@ -1,11 +1,12 @@
-//// filepath: /Users/shaunsevilla/Downloads/CM2020_AgileSoftwareProjects_EOYProject/lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:lgpokemon/Components/add_friend_dialog.dart'; // Import the dialog function
+import 'package:lgpokemon/Components/add_friend_dialog.dart';
 import 'package:lgpokemon/screens/home_screen.dart';
 import 'package:lgpokemon/screens/friend_request_screen.dart';
 import 'package:lgpokemon/screens/news_screen.dart';
 import 'package:lgpokemon/screens/account_screen.dart';
 import 'package:lgpokemon/screens/pokemon_cards_screen.dart';
+import 'package:lgpokemon/screens/admin_screen.dart'; // New import
+import 'package:lgpokemon/helpers/database_helper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter App',
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
       home: const MainScreen(),
     );
   }
@@ -32,14 +38,41 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   bool _isLoggedIn = false;
+  bool _isAdmin = false; // New flag to check if user is admin
   String _username = "Guest";
 
   // Toggle login status and update username if logged in.
-  void _toggleLogin(bool status, [String username = "Guest"]) {
+  void _toggleLogin(bool status, [String username = "Guest"]) async {
     setState(() {
       _isLoggedIn = status;
-      if (status) _username = username;
+      _username = status ? username : "Guest";
     });
+
+    if (status) {
+      // Check if logged in user is admin
+      final account =
+          await DatabaseHelper.instance.getAccountByUsername(username);
+      final bool isAdmin =
+          account != null && (account['isAdmin'] as int? ?? 0) == 1;
+
+      setState(() {
+        _isAdmin = isAdmin;
+        if (_selectedIndex >= 4) {
+          // Reset to Home if on Admin tab but no longer admin
+          _selectedIndex = 0;
+        }
+      });
+
+      debugPrint("User is admin: $_isAdmin");
+    } else {
+      setState(() {
+        _isAdmin = false;
+        if (_selectedIndex >= 4) {
+          // Reset to Home if on Admin tab but logged out
+          _selectedIndex = 0;
+        }
+      });
+    }
   }
 
   /// Returns a different FAB widget (or null) based on the current page.
@@ -76,6 +109,7 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Build the pages list based on logged in status and admin status
     final List<Widget> pages = [
       HomeScreen(isLoggedIn: _isLoggedIn, currentUser: _username),
       FriendRequestScreen(currentUser: _username),
@@ -84,8 +118,36 @@ class _MainScreenState extends State<MainScreen> {
         isLoggedIn: _isLoggedIn,
         onLogin: (username) => _toggleLogin(true, username),
         onLogout: () => _toggleLogin(false),
+        currentUser: _username,
       ),
     ];
+
+    // Add AdminScreen if user is admin
+    if (_isAdmin) {
+      pages.add(const AdminScreen());
+    }
+
+    // Create bottom navigation items
+    final List<BottomNavigationBarItem> navItems = [
+      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+      const BottomNavigationBarItem(
+          icon: Icon(Icons.person_add), label: 'Friend Request'),
+      const BottomNavigationBarItem(icon: Icon(Icons.article), label: 'News'),
+      BottomNavigationBarItem(
+        icon: Icon(_isLoggedIn ? Icons.person : Icons.login),
+        label: _isLoggedIn ? 'Profile' : 'Account',
+      ),
+    ];
+
+    // Add Admin tab if user is admin
+    if (_isAdmin) {
+      navItems.add(
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.admin_panel_settings),
+          label: 'Admin',
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -97,20 +159,11 @@ class _MainScreenState extends State<MainScreen> {
       ),
       body: pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.person_add), label: 'Friend Request'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.article), label: 'News'),
-          BottomNavigationBarItem(
-            icon: Icon(_isLoggedIn ? Icons.person : Icons.login),
-            label: _isLoggedIn ? 'Profile' : 'Account',
-          ),
-        ],
+        items: navItems,
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed, // Required for more than 4 items
         onTap: (index) {
           setState(() {
             _selectedIndex = index;

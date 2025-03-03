@@ -112,13 +112,15 @@ class DatabaseHelper {
 
     // Create the accounts table.
     await db.execute('''
-      CREATE TABLE accounts (
-        id $idType,
-        username $textType,
-        password $textType,
-        friendCode $textType
-      )
-    ''');
+    CREATE TABLE accounts (
+    id $idType,
+    username $textType,
+    password $textType,
+    friendCode $textType,
+    avatarPath TEXT,
+    isAdmin INTEGER DEFAULT 0
+    )
+  ''');
 
     // Seed the accounts table with two accounts.
     await db.insert('accounts', {
@@ -130,6 +132,12 @@ class DatabaseHelper {
       'username': 'Username1',
       'password': 'Password1',
       'friendCode': 'A00A00A01',
+    });
+    await db.insert('accounts', {
+      'username': 'Admin',
+      'password': 'Admin',
+      'friendCode': 'A00A00A02',
+      'isAdmin': 1,
     });
 
     // Seed the usercards table for "Username1" account with three additional cards.
@@ -195,6 +203,17 @@ class DatabaseHelper {
       'recipientFriendCode': 'A00A00A00',
       'status': 'accepted',
     });
+
+    await db.execute('''
+  CREATE TABLE messages (
+    id $idType,
+    sender $textType,
+    recipient $textType,
+    content $textType,
+    timestamp INTEGER NOT NULL,
+    read INTEGER NOT NULL
+  )
+''');
   }
 
   // ----- Social Cards CRUD -----
@@ -449,5 +468,109 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getNews() async {
     final db = await instance.database;
     return await db.query('news', orderBy: 'id DESC');
+  }
+
+// Add insertNews method to DatabaseHelper class
+  Future<int> insertNews(Map<String, dynamic> news) async {
+    final db = await instance.database;
+    return await db.insert('news', news);
+  }
+
+// Add deleteNews method to DatabaseHelper class
+  Future<int> deleteNews(int id) async {
+    final db = await instance.database;
+    return await db.delete('news', where: 'id = ?', whereArgs: [id]);
+  }
+
+// Add updateNews method to DatabaseHelper class
+  Future<int> updateNews(Map<String, dynamic> news) async {
+    final db = await instance.database;
+    return await db.update(
+      'news',
+      news,
+      where: 'id = ?',
+      whereArgs: [news['id']],
+    );
+  }
+
+  // ----- Chat Messages CRUD -----
+  Future<int> insertMessage(Map<String, dynamic> message) async {
+    final db = await instance.database;
+    return await db.insert('messages', message);
+  }
+
+  Future<List<Map<String, dynamic>>> getMessagesBetweenUsers(
+      String user1, String user2) async {
+    final db = await instance.database;
+    return await db.query(
+      'messages',
+      where: '(sender = ? AND recipient = ?) OR (sender = ? AND recipient = ?)',
+      whereArgs: [user1, user2, user2, user1],
+      orderBy: 'timestamp ASC',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getConversations(String username) async {
+    final db = await instance.database;
+
+    // This query gets the most recent message for each conversation
+    final result = await db.rawQuery('''
+    SELECT 
+      m1.*
+    FROM 
+      messages m1
+    INNER JOIN (
+      SELECT 
+        CASE 
+          WHEN sender = ? THEN recipient
+          ELSE sender
+        END as other_user,
+        MAX(timestamp) as max_time
+      FROM 
+        messages
+      WHERE 
+        sender = ? OR recipient = ?
+      GROUP BY 
+        other_user
+    ) m2 ON (
+      (m1.sender = ? AND m1.recipient = m2.other_user) OR
+      (m1.recipient = ? AND m1.sender = m2.other_user)
+    ) AND m1.timestamp = m2.max_time
+    ORDER BY 
+      m1.timestamp DESC
+  ''', [username, username, username, username, username]);
+
+    return result;
+  }
+
+  Future<int> markMessagesAsRead(String sender, String recipient) async {
+    final db = await instance.database;
+    return await db.update(
+      'messages',
+      {'read': 1},
+      where: 'sender = ? AND recipient = ? AND read = 0',
+      whereArgs: [sender, recipient],
+    );
+  }
+
+  Future<int> getUnreadMessageCount(String username) async {
+    final db = await instance.database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM messages WHERE recipient = ? AND read = 0',
+      [username],
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  // Add this method to DatabaseHelper class
+  Future<int> updateAccount(Map<String, dynamic> account) async {
+    final db = await instance.database;
+    final username = account['username'];
+    return await db.update(
+      'accounts',
+      account,
+      where: 'username = ?',
+      whereArgs: [username],
+    );
   }
 }

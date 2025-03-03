@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 class NewsDetailScreen extends StatelessWidget {
@@ -14,6 +15,54 @@ class NewsDetailScreen extends StatelessWidget {
     required this.date,
   });
 
+  // Helper method to properly handle different image sources
+  Widget _buildNewsImage(String imgPath,
+      {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    try {
+      // First try loading as an asset
+      if (imgPath.startsWith('lib/') || imgPath.startsWith('assets/')) {
+        return Image.asset(
+          imgPath,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            // If asset loading fails, try file loading
+            return _tryLoadFile(imgPath,
+                width: width, height: height, fit: fit);
+          },
+        );
+      } else {
+        // Try loading as a file
+        return _tryLoadFile(imgPath, width: width, height: height, fit: fit);
+      }
+    } catch (e) {
+      debugPrint("Error loading image: $e");
+      return const Icon(Icons.broken_image, size: 150);
+    }
+  }
+
+  Widget _tryLoadFile(String imgPath,
+      {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    try {
+      final file = File(imgPath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.broken_image, size: 150);
+          },
+        );
+      }
+      return const Icon(Icons.broken_image, size: 150);
+    } catch (e) {
+      return const Icon(Icons.broken_image, size: 150);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,13 +74,7 @@ class NewsDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Display the news image.
-              Image.asset(
-                imgPath,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.broken_image, size: 150),
-              ),
+              _buildNewsImage(imgPath, width: double.infinity),
               const SizedBox(height: 10),
               Text(
                 title,

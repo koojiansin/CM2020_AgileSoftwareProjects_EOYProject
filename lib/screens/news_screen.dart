@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lgpokemon/helpers/database_helper.dart';
 import 'news_detail_screen.dart';
@@ -16,6 +17,54 @@ class _NewsScreenState extends State<NewsScreen> {
   void initState() {
     super.initState();
     _newsFuture = DatabaseHelper.instance.getNews();
+  }
+
+  // Helper method to properly handle different image sources
+  Widget _buildNewsImage(String imgPath,
+      {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    try {
+      // First try loading as an asset
+      if (imgPath.startsWith('lib/') || imgPath.startsWith('assets/')) {
+        return Image.asset(
+          imgPath,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            // If asset loading fails, try file loading
+            return _tryLoadFile(imgPath,
+                width: width, height: height, fit: fit);
+          },
+        );
+      } else {
+        // Try loading as a file
+        return _tryLoadFile(imgPath, width: width, height: height, fit: fit);
+      }
+    } catch (e) {
+      debugPrint("Error loading image: $e");
+      return const Icon(Icons.broken_image, size: 50);
+    }
+  }
+
+  Widget _tryLoadFile(String imgPath,
+      {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    try {
+      final file = File(imgPath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.broken_image, size: 50);
+          },
+        );
+      }
+      return const Icon(Icons.broken_image, size: 50);
+    } catch (e) {
+      return const Icon(Icons.broken_image, size: 50);
+    }
   }
 
   @override
@@ -41,12 +90,9 @@ class _NewsScreenState extends State<NewsScreen> {
               return Card(
                 margin: const EdgeInsets.all(10),
                 child: ListTile(
-                  leading: Image.asset(
-                    news['imgPath'],
+                  leading: SizedBox(
                     width: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.broken_image),
+                    child: _buildNewsImage(news['imgPath'], width: 80),
                   ),
                   title: Text(
                     news['title'],

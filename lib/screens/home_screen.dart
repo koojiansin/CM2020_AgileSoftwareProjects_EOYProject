@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lgpokemon/Components/new_social_card.dart';
 import 'package:lgpokemon/helpers/database_helper.dart';
@@ -36,6 +37,58 @@ class _HomeScreenState extends State<HomeScreen> {
     _userCardsFuture =
         DatabaseHelper.instance.getUserCardsFor(widget.currentUser);
     _newsFuture = DatabaseHelper.instance.getNews();
+  }
+
+  // Helper method to properly handle different image sources
+  Widget _buildNewsImage(String imgPath,
+      {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    try {
+      // First try loading as an asset
+      if (imgPath.startsWith('lib/') || imgPath.startsWith('assets/')) {
+        return Image.asset(
+          imgPath,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint("Asset loading failed: $error");
+            // If asset loading fails, try file loading
+            return _tryLoadFile(imgPath,
+                width: width, height: height, fit: fit);
+          },
+        );
+      } else {
+        // Try loading as a file
+        return _tryLoadFile(imgPath, width: width, height: height, fit: fit);
+      }
+    } catch (e) {
+      debugPrint("Error loading image: $e");
+      return const Icon(Icons.broken_image, size: 150);
+    }
+  }
+
+  Widget _tryLoadFile(String imgPath,
+      {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    try {
+      final file = File(imgPath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint("File loading failed: $error");
+            return const Icon(Icons.broken_image, size: 150);
+          },
+        );
+      }
+      debugPrint("File doesn't exist: $imgPath");
+      return const Icon(Icons.broken_image, size: 150);
+    } catch (e) {
+      debugPrint("File error: $e");
+      return const Icon(Icons.broken_image, size: 150);
+    }
   }
 
   @override
@@ -92,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                               );
                             } catch (e) {
-                              print("Navigation error: $e");
+                              debugPrint("Navigation error: $e");
                             }
                           },
                           child: Card(
@@ -103,13 +156,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             margin: const EdgeInsets.symmetric(horizontal: 5),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
+                              // Replace Image.asset with our _buildNewsImage helper
+                              child: _buildNewsImage(
                                 news["imgPath"] ??
                                     'assets/images/news_placeholder.png',
                                 width: double.infinity,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(Icons.broken_image, size: 150),
                               ),
                             ),
                           ),
@@ -161,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     } catch (e) {
-                      print("Error navigating to SocialPage: $e");
+                      debugPrint("Error navigating to SocialPage: $e");
                     }
                   }
                 : null,
