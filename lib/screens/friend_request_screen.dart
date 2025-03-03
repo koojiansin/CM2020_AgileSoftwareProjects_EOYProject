@@ -13,297 +13,146 @@ class FriendRequestScreen extends StatefulWidget {
 }
 
 class _FriendRequestScreenState extends State<FriendRequestScreen> {
-  // Check if a string is likely a base64 image - improved detection
-  bool _isBase64(String str) {
+  Future<Map<String, List<Map<String, dynamic>>>> _fetchFriendRequestData() async {
     try {
-      return str.length > 100 &&
-          RegExp(r'^[A-Za-z0-9+/]+={0,2}$').hasMatch(str);
-    } catch (e) {
-      return false;
-    }
-  }
-
-  // Check if a string is likely an asset path
-  bool _isAssetPath(String str) =>
-      str.startsWith('lib/') ||
-      str.startsWith('assets/') ||
-      str.contains('assets');
-
-  // Fetch incoming friend requests with friend avatars
-  Future<Map<String, List<Map<String, dynamic>>>>
-      _fetchFriendRequestData() async {
-    try {
-      debugPrint("Current user: ${widget.currentUser}");
-
-      final account = await DatabaseHelper.instance
-          .getAccountByUsername(widget.currentUser);
-      if (account == null) {
-        debugPrint("Account not found for ${widget.currentUser}");
-        return {'incoming': []};
-      }
+      final account = await DatabaseHelper.instance.getAccountByUsername(widget.currentUser);
+      if (account == null) return {'incoming': []};
 
       final String myFriendCode = account['friendCode'] as String;
-      debugPrint("Friend code: $myFriendCode");
-
-      final incoming =
-          await DatabaseHelper.instance.getIncomingFriendRequests(myFriendCode);
-      debugPrint("Fetched ${incoming.length} friend requests");
-
-      // Enhance each friend entry with their avatar path
-      for (var request in incoming) {
-        try {
-          // Only process accepted requests
-          if (request['status'] == 'accepted') {
-            final friendUsername = request['sender'] as String;
-            debugPrint("Processing friend: $friendUsername");
-
-            final friendAccount = await DatabaseHelper.instance
-                .getAccountByUsername(friendUsername);
-
-            if (friendAccount != null) {
-              final avatarPath = friendAccount['avatarPath'] as String?;
-              debugPrint("Friend $friendUsername avatar path: $avatarPath");
-
-              // Store the avatar path in the request
-              request['avatarPath'] = avatarPath;
-
-              // Extra debug info
-              if (avatarPath != null && avatarPath.isNotEmpty) {
-                if (_isBase64(avatarPath)) {
-                  debugPrint("Avatar appears to be base64 encoded");
-                } else if (_isAssetPath(avatarPath)) {
-                  debugPrint("Avatar appears to be an asset path");
-                } else {
-                  // Check if file exists and is accessible
-                  try {
-                    final file = File(avatarPath);
-                    final fileExists = await file.exists();
-                    debugPrint("File exists: $fileExists");
-
-                    if (fileExists) {
-                      final fileStats = await file.stat();
-                      debugPrint("File size: ${fileStats.size} bytes");
-                      debugPrint("File modified: ${fileStats.modified}");
-
-                      // Try to read the first few bytes to verify access
-                      await file.openRead(0, 4).first;
-                      debugPrint("File is readable");
-                    }
-                  } catch (e) {
-                    debugPrint("File error: $e");
-                  }
-                }
-              } else {
-                debugPrint("Avatar path is null or empty");
-              }
-            } else {
-              debugPrint("Friend account not found: $friendUsername");
-            }
-          }
-        } catch (e) {
-          debugPrint("Error processing friend avatar: $e");
-        }
-      }
+      final incoming = await DatabaseHelper.instance.getIncomingFriendRequests(myFriendCode);
 
       return {'incoming': incoming};
     } catch (e, stack) {
       debugPrint("Error fetching friend data: $e");
-      debugPrint("Stack trace: $stack");
       return {'incoming': []};
     }
   }
 
-  // Decline a friend request given its requestId.
   Future<void> _declineFriendRequest(int requestId) async {
     try {
       await DatabaseHelper.instance.declineFriendRequest(requestId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Friend request declined.")),
-      );
       setState(() {});
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to decline friend request: $e")),
-      );
+      debugPrint("Failed to decline friend request: $e");
     }
   }
 
-  // Delete a friendship for both sides.
   Future<void> _deleteFriend(String friendUsername) async {
     try {
-      await DatabaseHelper.instance
-          .deleteFriendship(widget.currentUser, friendUsername);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Friend deleted.")),
-      );
+      await DatabaseHelper.instance.deleteFriendship(widget.currentUser, friendUsername);
       setState(() {});
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to delete friend: $e")),
-      );
+      debugPrint("Failed to delete friend: $e");
     }
   }
 
-  // Accept a friend request given its requestId.
   Future<void> _acceptFriendRequest(int requestId) async {
     try {
-      // Accept the original friend request.
       await DatabaseHelper.instance.acceptFriendRequest(requestId);
-
-      // Retrieve the accepted friend request to obtain the sender.
-      final requestRecord =
-          await DatabaseHelper.instance.getFriendRequestById(requestId);
+      final requestRecord = await DatabaseHelper.instance.getFriendRequestById(requestId);
       if (requestRecord != null) {
         final String friendSender = requestRecord['sender'] as String;
-        // Look up the sender's account information to get their friend code.
-        final senderAccount =
-            await DatabaseHelper.instance.getAccountByUsername(friendSender);
+        final senderAccount = await DatabaseHelper.instance.getAccountByUsername(friendSender);
         if (senderAccount != null) {
           final String senderFriendCode = senderAccount['friendCode'] as String;
-          // Insert reciprocal friendship: current user (the one who accepted) becomes sender,
-          // and the sender's friend code becomes recipient.
-          await DatabaseHelper.instance
-              .insertReciprocalFriendship(widget.currentUser, senderFriendCode);
+          await DatabaseHelper.instance.insertReciprocalFriendship(widget.currentUser, senderFriendCode);
         }
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Friend request accepted.")),
-      );
       setState(() {});
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to accept friend request: $e")),
-      );
+      debugPrint("Failed to accept friend request: $e");
     }
   }
 
-  // Improved avatar widget that handles all cases more robustly
-  Widget _buildFriendAvatar(String friendUsername, String? avatarPath) {
-    // Default avatar widget showing the first letter
-    Widget defaultAvatar() {
-      return CircleAvatar(
-        backgroundColor: Theme.of(context).primaryColor,
-        child: Text(
-          friendUsername.isNotEmpty ? friendUsername[0].toUpperCase() : "?",
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      );
-    }
+  Widget _buildFriendListTile(String friendUsername, String? avatarPath) {
+    return FutureBuilder<int>(
+      future: DatabaseHelper.instance.getUnreadMessagesCount(widget.currentUser, friendUsername),
+      builder: (context, snapshot) {
+        int unreadCount = snapshot.data ?? 0;
 
-    // If no path, return the default avatar
-    if (avatarPath == null || avatarPath.isEmpty) {
-      debugPrint("No avatar path for $friendUsername, showing default");
-      return defaultAvatar();
-    }
-
-    debugPrint("Building avatar for $friendUsername with path: $avatarPath");
-
-    try {
-      // Handle different types of avatar paths
-      if (_isBase64(avatarPath)) {
-        debugPrint("Rendering base64 avatar for $friendUsername");
-
-        try {
-          final imageBytes = base64Decode(avatarPath);
-          return CircleAvatar(
+        return ListTile(
+          leading: CircleAvatar(
             backgroundColor: Theme.of(context).primaryColor,
-            child: ClipOval(
-              child: Image.memory(
-                imageBytes,
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-                errorBuilder: (context, error, stackTrace) {
-                  debugPrint("Failed to load base64 image: $error");
-                  return Text(
-                    friendUsername[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
-                },
+            child: Text(
+              friendUsername.isNotEmpty ? friendUsername[0].toUpperCase() : "?",
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          );
-        } catch (e) {
-          debugPrint("Base64 decode error: $e");
-          return defaultAvatar();
-        }
-      } else if (_isAssetPath(avatarPath)) {
-        debugPrint("Rendering asset avatar for $friendUsername");
-
-        return CircleAvatar(
-          backgroundColor: Theme.of(context).primaryColor,
-          child: ClipOval(
-            child: Image.asset(
-              avatarPath,
-              width: 40,
-              height: 40,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-              errorBuilder: (context, error, stackTrace) {
-                debugPrint("Failed to load asset image: $error");
-                return Text(
-                  friendUsername[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                );
-              },
+          ),
+          title: Text(friendUsername),
+          subtitle: const Text("Friend"),
+          trailing: SizedBox(
+            width: 100, // Ensures both buttons fit properly
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none, // Ensures badge doesn't get clipped
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chat),
+                      color: Theme.of(context).primaryColor,
+                      tooltip: "Chat with $friendUsername",
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ChatScreen(
+                              currentUser: widget.currentUser,
+                              otherUser: friendUsername,
+                            ),
+                          ),
+                        ).then((_) {
+                          setState(() {}); // Refresh UI when coming back
+                        });
+                      },
+                    ),
+                    if (unreadCount > 0)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: IgnorePointer( // Ensures badge does not block clicks
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle, // Keeps badge circular
+                              border: Border.all(color: Colors.white, width: 1), // White border
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            child: Center(
+                              child: Text(
+                                unreadCount > 9 ? '9+' : '$unreadCount', // Limits badge to '9+'
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.person_remove),
+                  color: Colors.red,
+                  tooltip: "Remove $friendUsername",
+                  onPressed: () => _deleteFriend(friendUsername),
+                ),
+              ],
             ),
           ),
         );
-      } else {
-        // File path handling with extra safety checks
-        debugPrint("Rendering file avatar for $friendUsername");
-
-        final file = File(avatarPath);
-        return FutureBuilder<bool>(
-          future: file.exists(),
-          builder: (context, snapshot) {
-            // Only try to load the file if it exists
-            if (snapshot.data == true) {
-              return CircleAvatar(
-                backgroundColor: Theme.of(context).primaryColor,
-                child: ClipOval(
-                  child: Image.file(
-                    file,
-                    width: 40,
-                    height: 40,
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    cacheWidth: 80, // Add caching for better performance
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint("Failed to load file image: $error");
-                      return Text(
-                        friendUsername[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              );
-            } else {
-              // File doesn't exist or couldn't be checked
-              debugPrint("File doesn't exist: $avatarPath");
-              return defaultAvatar();
-            }
-          },
-        );
-      }
-    } catch (e) {
-      debugPrint("Avatar rendering error: $e");
-      return defaultAvatar();
-    }
+      },
+    );
   }
 
   @override
@@ -327,7 +176,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
           }
 
           if (snapshot.hasError) {
-            debugPrint("Error in friend requests: ${snapshot.error}");
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -346,10 +194,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
           final data = snapshot.data ?? {'incoming': []};
           final incoming = data['incoming'] ?? [];
 
-          final friends =
-              incoming.where((req) => req['status'] == 'accepted').toList();
-          final pending =
-              incoming.where((req) => req['status'] == 'pending').toList();
+          final friends = incoming.where((req) => req['status'] == 'accepted').toList();
+          final pending = incoming.where((req) => req['status'] == 'pending').toList();
 
           return SingleChildScrollView(
             child: Padding(
@@ -357,7 +203,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Friends Section
                   const Text(
                     "Your Friends:",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -381,50 +226,12 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       elevation: 2,
                       child: Column(
                         children: friends.map((req) {
-                          final String friendUsername =
-                              req['sender']?.toString() ?? "Unknown";
-                          final String? avatarPath =
-                              req['avatarPath'] as String?;
-
-                          return ListTile(
-                            leading:
-                                _buildFriendAvatar(friendUsername, avatarPath),
-                            title: Text(friendUsername),
-                            subtitle: const Text("Friend"),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.chat),
-                                  color: Theme.of(context).primaryColor,
-                                  tooltip: "Chat with $friendUsername",
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ChatScreen(
-                                          currentUser: widget.currentUser,
-                                          otherUser: friendUsername,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.person_remove),
-                                  color: Colors.red,
-                                  tooltip: "Remove $friendUsername",
-                                  onPressed: () =>
-                                      _deleteFriend(friendUsername),
-                                ),
-                              ],
-                            ),
-                          );
+                          final String friendUsername = req['sender']?.toString() ?? "Unknown";
+                          return _buildFriendListTile(friendUsername, req['avatarPath'] as String?);
                         }).toList(),
                       ),
                     ),
 
-                  // Requests Section
                   const Divider(height: 30, thickness: 1),
                   const Text(
                     "Received Friend Requests:",
@@ -450,15 +257,12 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       child: Column(
                         children: pending.map((req) {
                           final int requestId = req['id'] as int? ?? -1;
-                          final String sender =
-                              req['sender']?.toString() ?? "Unknown";
+                          final String sender = req['sender']?.toString() ?? "Unknown";
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: Colors.grey,
                               child: Text(
-                                sender.isNotEmpty
-                                    ? sender[0].toUpperCase()
-                                    : "?",
+                                sender.isNotEmpty ? sender[0].toUpperCase() : "?",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -471,25 +275,14 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 ElevatedButton(
-                                  onPressed: requestId > 0
-                                      ? () => _acceptFriendRequest(requestId)
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    backgroundColor:
-                                        Theme.of(context).primaryColor,
-                                  ),
+                                  onPressed: () => _acceptFriendRequest(requestId),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
                                   child: const Text("Accept"),
                                 ),
                                 const SizedBox(width: 10),
                                 ElevatedButton(
-                                  onPressed: requestId > 0
-                                      ? () => _declineFriendRequest(requestId)
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    foregroundColor: Colors.white,
-                                    backgroundColor: Colors.red,
-                                  ),
+                                  onPressed: () => _declineFriendRequest(requestId),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                                   child: const Text("Decline"),
                                 ),
                               ],

@@ -553,13 +553,14 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> getUnreadMessageCount(String username) async {
+  Future<int> getUnreadMessagesCount(String currentUser, String otherUser) async {
     final db = await instance.database;
     final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM messages WHERE recipient = ? AND read = 0',
-      [username],
+      "SELECT COUNT(*) as unreadCount FROM messages WHERE recipient = ? AND sender = ? AND read = 0",
+      [currentUser, otherUser],
     );
-    return Sqflite.firstIntValue(result) ?? 0;
+
+    return result.isNotEmpty ? result.first['unreadCount'] as int? ?? 0 : 0;
   }
 
   // Add this method to DatabaseHelper class
