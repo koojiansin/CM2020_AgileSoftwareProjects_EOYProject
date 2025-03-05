@@ -42,8 +42,39 @@ class _MyPageState extends State<MyPage> {
   }
 
   Future<void> _handleAddCard(BuildContext context) async {
+    // Show option to choose between camera and gallery
+    await showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take a Photo'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _getImageAndAddCard(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _getImageAndAddCard(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _getImageAndAddCard(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+    final pickedFile = await picker.pickImage(source: source);
     if (pickedFile == null) return;
 
     final bytes = await pickedFile.readAsBytes();
@@ -58,6 +89,7 @@ class _MyPageState extends State<MyPage> {
           title: const Text("Add New Card"),
           content: SingleChildScrollView(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Image.memory(
                   Uint8List.fromList(bytes),
@@ -171,7 +203,6 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ...existing build code...
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Cards'),
@@ -202,7 +233,7 @@ class _MyPageState extends State<MyPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _handleAddCard(context),
-        child: const Icon(Icons.camera_alt),
+        child: const Icon(Icons.add_photo_alternate),
       ),
     );
   }

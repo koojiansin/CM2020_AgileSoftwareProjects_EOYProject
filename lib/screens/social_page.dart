@@ -172,7 +172,6 @@ class _SocialPageState extends State<SocialPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ...existing build code...
     return Scaffold(
       appBar: AppBar(
         title: const Text('Friend Cards'),

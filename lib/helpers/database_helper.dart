@@ -76,22 +76,22 @@ class DatabaseHelper {
     final defaultNews = [
       {
         'imgPath': 'lib/images/News1.png',
-        'title': 'Release Time and Countdown',
+        'title': 'Latest News',
         'description':
-            'The release time for the new game has been announced. Check out the countdown timer.',
+            'The latest news and updates for the Community and Shops.',
         'date': 'Feb 17, 2025',
       },
       {
         'imgPath': 'lib/images/News2.png',
-        'title': 'Maintenance Status',
-        'description': 'Maintenance status and updates.',
+        'title': 'Release Time and Countdown',
+        'description':
+            'The release time for the new game has been announced. Check out the countdown timer.',
         'date': 'Feb 16, 2025',
       },
       {
         'imgPath': 'lib/images/News3.png',
-        'title': 'Latest News',
-        'description':
-            'The latest news and updates for the Community and Shops.',
+        'title': 'Maintenance Status',
+        'description': 'Maintenance status and updates.',
         'date': 'Feb 15, 2025',
       },
     ];
