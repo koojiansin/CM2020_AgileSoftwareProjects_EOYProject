@@ -553,7 +553,8 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> getUnreadMessagesCount(String currentUser, String otherUser) async {
+  Future<int> getUnreadMessagesCount(
+      String currentUser, String otherUser) async {
     final db = await instance.database;
     final result = await db.rawQuery(
       "SELECT COUNT(*) as unreadCount FROM messages WHERE recipient = ? AND sender = ? AND read = 0",
@@ -573,5 +574,48 @@ class DatabaseHelper {
       where: 'username = ?',
       whereArgs: [username],
     );
+  }
+
+  Future<int> updateMessageContent(int messageId, String newContent) async {
+    final db = await instance.database;
+    return await db.update(
+      'messages',
+      {'content': newContent},
+      where: 'id = ?',
+      whereArgs: [messageId],
+    );
+  }
+
+  Future<bool> transferCard(int cardId, String seller, String buyer) async {
+    final db = await instance.database;
+    bool success = false;
+
+    // Begin transaction
+    await db.transaction((txn) async {
+      // Get the card data
+      final cardResult = await txn.query(
+        'usercards',
+        where: 'id = ? AND username = ?',
+        whereArgs: [cardId, seller],
+      );
+
+      if (cardResult.isEmpty) {
+        return;
+      }
+
+      // Update the card to belong to the new owner
+      final updateCount = await txn.update(
+        'usercards',
+        {'username': buyer},
+        where: 'id = ?',
+        whereArgs: [cardId],
+      );
+
+      if (updateCount > 0) {
+        success = true;
+      }
+    });
+
+    return success;
   }
 }

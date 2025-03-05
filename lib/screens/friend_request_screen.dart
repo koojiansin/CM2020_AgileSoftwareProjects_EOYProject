@@ -13,13 +13,16 @@ class FriendRequestScreen extends StatefulWidget {
 }
 
 class _FriendRequestScreenState extends State<FriendRequestScreen> {
-  Future<Map<String, List<Map<String, dynamic>>>> _fetchFriendRequestData() async {
+  Future<Map<String, List<Map<String, dynamic>>>>
+      _fetchFriendRequestData() async {
     try {
-      final account = await DatabaseHelper.instance.getAccountByUsername(widget.currentUser);
+      final account = await DatabaseHelper.instance
+          .getAccountByUsername(widget.currentUser);
       if (account == null) return {'incoming': []};
 
       final String myFriendCode = account['friendCode'] as String;
-      final incoming = await DatabaseHelper.instance.getIncomingFriendRequests(myFriendCode);
+      final incoming =
+          await DatabaseHelper.instance.getIncomingFriendRequests(myFriendCode);
 
       return {'incoming': incoming};
     } catch (e, stack) {
@@ -39,7 +42,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
 
   Future<void> _deleteFriend(String friendUsername) async {
     try {
-      await DatabaseHelper.instance.deleteFriendship(widget.currentUser, friendUsername);
+      await DatabaseHelper.instance
+          .deleteFriendship(widget.currentUser, friendUsername);
       setState(() {});
     } catch (e) {
       debugPrint("Failed to delete friend: $e");
@@ -49,13 +53,16 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   Future<void> _acceptFriendRequest(int requestId) async {
     try {
       await DatabaseHelper.instance.acceptFriendRequest(requestId);
-      final requestRecord = await DatabaseHelper.instance.getFriendRequestById(requestId);
+      final requestRecord =
+          await DatabaseHelper.instance.getFriendRequestById(requestId);
       if (requestRecord != null) {
         final String friendSender = requestRecord['sender'] as String;
-        final senderAccount = await DatabaseHelper.instance.getAccountByUsername(friendSender);
+        final senderAccount =
+            await DatabaseHelper.instance.getAccountByUsername(friendSender);
         if (senderAccount != null) {
           final String senderFriendCode = senderAccount['friendCode'] as String;
-          await DatabaseHelper.instance.insertReciprocalFriendship(widget.currentUser, senderFriendCode);
+          await DatabaseHelper.instance
+              .insertReciprocalFriendship(widget.currentUser, senderFriendCode);
         }
       }
       setState(() {});
@@ -66,7 +73,8 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
 
   Widget _buildFriendListTile(String friendUsername, String? avatarPath) {
     return FutureBuilder<int>(
-      future: DatabaseHelper.instance.getUnreadMessagesCount(widget.currentUser, friendUsername),
+      future: DatabaseHelper.instance
+          .getUnreadMessagesCount(widget.currentUser, friendUsername),
       builder: (context, snapshot) {
         int unreadCount = snapshot.data ?? 0;
 
@@ -113,13 +121,16 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       Positioned(
                         right: 2,
                         top: 2,
-                        child: IgnorePointer( // Ensures badge does not block clicks
+                        child: IgnorePointer(
+                          // Ensures badge does not block clicks
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle, // Keeps badge circular
-                              border: Border.all(color: Colors.white, width: 1), // White border
+                              border: Border.all(
+                                  color: Colors.white,
+                                  width: 1), // White border
                             ),
                             constraints: const BoxConstraints(
                               minWidth: 20,
@@ -127,7 +138,9 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                             ),
                             child: Center(
                               child: Text(
-                                unreadCount > 9 ? '9+' : '$unreadCount', // Limits badge to '9+'
+                                unreadCount > 9
+                                    ? '9+'
+                                    : '$unreadCount', // Limits badge to '9+'
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -160,13 +173,6 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Friends & Requests"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => setState(() {}),
-            tooltip: "Refresh",
-          ),
-        ],
       ),
       body: FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
         future: _fetchFriendRequestData(),
@@ -194,8 +200,10 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
           final data = snapshot.data ?? {'incoming': []};
           final incoming = data['incoming'] ?? [];
 
-          final friends = incoming.where((req) => req['status'] == 'accepted').toList();
-          final pending = incoming.where((req) => req['status'] == 'pending').toList();
+          final friends =
+              incoming.where((req) => req['status'] == 'accepted').toList();
+          final pending =
+              incoming.where((req) => req['status'] == 'pending').toList();
 
           return SingleChildScrollView(
             child: Padding(
@@ -226,12 +234,13 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       elevation: 2,
                       child: Column(
                         children: friends.map((req) {
-                          final String friendUsername = req['sender']?.toString() ?? "Unknown";
-                          return _buildFriendListTile(friendUsername, req['avatarPath'] as String?);
+                          final String friendUsername =
+                              req['sender']?.toString() ?? "Unknown";
+                          return _buildFriendListTile(
+                              friendUsername, req['avatarPath'] as String?);
                         }).toList(),
                       ),
                     ),
-
                   const Divider(height: 30, thickness: 1),
                   const Text(
                     "Received Friend Requests:",
@@ -257,12 +266,15 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       child: Column(
                         children: pending.map((req) {
                           final int requestId = req['id'] as int? ?? -1;
-                          final String sender = req['sender']?.toString() ?? "Unknown";
+                          final String sender =
+                              req['sender']?.toString() ?? "Unknown";
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: Colors.grey,
                               child: Text(
-                                sender.isNotEmpty ? sender[0].toUpperCase() : "?",
+                                sender.isNotEmpty
+                                    ? sender[0].toUpperCase()
+                                    : "?",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -275,14 +287,19 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 ElevatedButton(
-                                  onPressed: () => _acceptFriendRequest(requestId),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).primaryColor),
+                                  onPressed: () =>
+                                      _acceptFriendRequest(requestId),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          Theme.of(context).primaryColor),
                                   child: const Text("Accept"),
                                 ),
                                 const SizedBox(width: 10),
                                 ElevatedButton(
-                                  onPressed: () => _declineFriendRequest(requestId),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                  onPressed: () =>
+                                      _declineFriendRequest(requestId),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red),
                                   child: const Text("Decline"),
                                 ),
                               ],

@@ -5,12 +5,14 @@ class Card {
   final String title;
   final String grade;
   final String imagePath;
+  final String? username; // Add username field
 
   Card({
     this.id,
     required this.title,
     required this.grade,
     required this.imagePath,
+    this.username,
   });
 
   factory Card.fromMap(Map<String, dynamic> map) {
@@ -19,6 +21,7 @@ class Card {
       title: map['title'] as String,
       grade: map['grade'] as String,
       imagePath: map['imagePath'] as String,
+      username: map['username'] as String?,
     );
   }
 
