@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -109,53 +111,73 @@ class _ChatScreenState extends State<ChatScreen> {
     _refreshMessages();
   }
 
-  // Handle accepting a card offer
   Future<void> _acceptCardOffer(
-      int? messageId, int cardId, String seller, String buyer) async {
+      int? messageId, int cardId, String seller, String buyer,
+      [double? price]) async {
     if (messageId == null) return;
 
-    // Transfer the card from seller to buyer
-    final success =
-        await DatabaseHelper.instance.transferCard(cardId, seller, buyer);
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
 
-    if (success) {
-      // Update the message to indicate accepted offer
-      await DatabaseHelper.instance.updateMessageContent(
-        messageId,
-        'CARD_OFFER_ACCEPTED: Card has been transferred successfully!',
-      );
+    try {
+      // Transfer the card from seller to buyer
+      final result = await DatabaseHelper.instance
+          .transferCard(cardId, seller, buyer, price ?? 0.0);
 
-      // Send a confirmation message
-      final confirmationMessage = {
-        'sender': widget.currentUser,
-        'recipient': widget.otherUser,
-        'content': 'I accepted your offer and sold the card!',
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'read': 0,
-      };
+      // Dismiss loading indicator
+      Navigator.of(context, rootNavigator: true).pop();
 
-      await DatabaseHelper.instance.insertMessage(confirmationMessage);
-      _refreshMessages();
+      if (result['success']) {
+        // Update the message to indicate accepted offer
+        await DatabaseHelper.instance.updateMessageContent(
+          messageId,
+          'CARD_OFFER_ACCEPTED: Card has been transferred successfully!',
+        );
 
-      // Show success message
-      if (mounted) {
+        // Send a confirmation message
+        final confirmationMessage = {
+          'sender': widget.currentUser,
+          'recipient': widget.otherUser,
+          'content': 'I accepted your offer and sold the card!',
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'read': 0,
+        };
+
+        await DatabaseHelper.instance.insertMessage(confirmationMessage);
+        _refreshMessages();
+
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Card transferred successfully!'),
+          SnackBar(
+            content: Text(result['message']),
             backgroundColor: Colors.green,
           ),
         );
-      }
-    } else {
-      // Show error message
-      if (mounted) {
+      } else {
+        // Show error message with detailed information
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to transfer card. Please try again.'),
+          SnackBar(
+            content: Text(result['message']),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
+    } catch (e) {
+      // Dismiss loading indicator if still showing
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // Show general error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('An unexpected error occurred: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

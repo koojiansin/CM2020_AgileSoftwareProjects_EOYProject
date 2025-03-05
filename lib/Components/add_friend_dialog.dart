@@ -1,4 +1,6 @@
 //// filepath: /Users/shaunsevilla/Downloads/CM2020_AgileSoftwareProjects_EOYProject/lib/components/add_friend_dialog.dart
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:lgpokemon/helpers/database_helper.dart';
 

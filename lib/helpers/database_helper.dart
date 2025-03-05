@@ -586,36 +586,71 @@ class DatabaseHelper {
     );
   }
 
-  Future<bool> transferCard(int cardId, String seller, String buyer) async {
+  Future<Map<String, dynamic>> transferCard(
+      int cardId, String seller, String buyer,
+      [double price = 0.0]) async {
     final db = await instance.database;
-    bool success = false;
 
-    // Begin transaction
-    await db.transaction((txn) async {
-      // Get the card data
-      final cardResult = await txn.query(
-        'usercards',
-        where: 'id = ? AND username = ?',
-        whereArgs: [cardId, seller],
-      );
+    try {
+      // Use transaction to ensure atomicity
+      return await db.transaction((txn) async {
+        // 1. Verify the card exists and belongs to seller
+        final List<Map<String, dynamic>> cards = await txn.query('usercards',
+            where: 'id = ? AND username = ?', whereArgs: [cardId, seller]);
 
-      if (cardResult.isEmpty) {
-        return;
-      }
+        if (cards.isEmpty) {
+          throw Exception("Card not found or doesn't belong to the seller");
+        }
 
-      // Update the card to belong to the new owner
-      final updateCount = await txn.update(
-        'usercards',
-        {'username': buyer},
-        where: 'id = ?',
-        whereArgs: [cardId],
-      );
+        // 2. Create transaction history table if it doesn't exist
+        await txn.execute('''
+          CREATE TABLE IF NOT EXISTS card_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            card_id INTEGER NOT NULL,
+            seller TEXT NOT NULL,
+            buyer TEXT NOT NULL,
+            price REAL NOT NULL,
+            timestamp INTEGER NOT NULL,
+            FOREIGN KEY (card_id) REFERENCES usercards (id)
+          )
+        ''');
 
-      if (updateCount > 0) {
-        success = true;
-      }
-    });
+        // 3. Update card ownership
+        final cardUpdateResult = await txn.update(
+            'usercards', {'username': buyer},
+            where: 'id = ?', whereArgs: [cardId]);
 
-    return success;
+        if (cardUpdateResult != 1) {
+          throw Exception("Failed to update card ownership");
+        }
+
+        // 4. Record the transaction
+        final transactionId = await txn.insert('card_transactions', {
+          'card_id': cardId,
+          'seller': seller,
+          'buyer': buyer,
+          'price': price,
+          'timestamp': DateTime.now().millisecondsSinceEpoch
+        });
+
+        if (transactionId <= 0) {
+          throw Exception("Failed to record transaction history");
+        }
+
+        // 5. Return success result
+        return {
+          'success': true,
+          'message': 'Card transferred successfully',
+          'transactionId': transactionId
+        };
+      });
+    } catch (e) {
+      // Transaction failed and was automatically rolled back
+      print("Transaction failed: ${e.toString()}");
+      return {
+        'success': false,
+        'message': 'Transaction failed: ${e.toString()}'
+      };
+    }
   }
 }
