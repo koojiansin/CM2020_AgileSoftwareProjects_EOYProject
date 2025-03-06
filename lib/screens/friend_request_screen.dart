@@ -73,22 +73,12 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
 
   Widget _buildFriendListTile(String friendUsername, String? avatarPath) {
     return FutureBuilder<int>(
-      future: DatabaseHelper.instance
-          .getUnreadMessagesCount(widget.currentUser, friendUsername),
+      future: DatabaseHelper.instance.getUnreadMessagesCount(widget.currentUser, friendUsername),
       builder: (context, snapshot) {
         int unreadCount = snapshot.data ?? 0;
 
         return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: Theme.of(context).primaryColor,
-            child: Text(
-              friendUsername.isNotEmpty ? friendUsername[0].toUpperCase() : "?",
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          leading: _buildProfileAvatar(friendUsername, avatarPath), // Updated here
           title: Text(friendUsername),
           subtitle: const Text("Friend"),
           trailing: SizedBox(
@@ -128,9 +118,7 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                             decoration: BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle, // Keeps badge circular
-                              border: Border.all(
-                                  color: Colors.white,
-                                  width: 1), // White border
+                              border: Border.all(color: Colors.white, width: 1), // White border
                             ),
                             constraints: const BoxConstraints(
                               minWidth: 20,
@@ -138,9 +126,7 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                             ),
                             child: Center(
                               child: Text(
-                                unreadCount > 9
-                                    ? '9+'
-                                    : '$unreadCount', // Limits badge to '9+'
+                                unreadCount > 9 ? '9+' : '$unreadCount', // Limits badge to '9+'
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -165,6 +151,68 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildProfileAvatar(String friendUsername, String? avatarPath) {
+    if (avatarPath == null || avatarPath.isEmpty) {
+      debugPrint("No avatar found for $friendUsername, using default avatar.");
+      return _defaultAvatar(friendUsername);
+    }
+
+    if (avatarPath.startsWith("data:image")) {
+      // Handle Base64 Encoded Image
+      try {
+        final imageBytes = base64Decode(avatarPath.split(',')[1]);
+        return CircleAvatar(
+          radius: 20,
+          backgroundColor: Colors.transparent,
+          backgroundImage: MemoryImage(imageBytes),
+        );
+      } catch (e) {
+        debugPrint("Error decoding base64 avatar: $e");
+        return _defaultAvatar(friendUsername);
+      }
+    } else if (avatarPath.startsWith("assets/") || avatarPath.startsWith("lib/")) {
+      // Handle Asset Image
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.transparent,
+        backgroundImage: AssetImage(avatarPath),
+      );
+    } else {
+      // Handle Local File Image
+      File file = File(avatarPath);
+      return FutureBuilder<bool>(
+        future: file.exists(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done && snapshot.data == true) {
+            return CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.transparent,
+              backgroundImage: FileImage(file),
+            );
+          } else {
+            debugPrint("Avatar file does not exist: $avatarPath");
+            return _defaultAvatar(friendUsername);
+          }
+        },
+      );
+    }
+  }
+
+// Default Avatar (Initials)
+  Widget _defaultAvatar(String friendUsername) {
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: Theme.of(context).primaryColor,
+      child: Text(
+        friendUsername.isNotEmpty ? friendUsername[0].toUpperCase() : "?",
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -234,11 +282,24 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
                       elevation: 2,
                       child: Column(
                         children: friends.map((req) {
-                          final String friendUsername =
-                              req['sender']?.toString() ?? "Unknown";
-                          return _buildFriendListTile(
-                              friendUsername, req['avatarPath'] as String?);
+                          final String friendUsername = req['sender']?.toString() ?? "Unknown";
+
+                          return FutureBuilder<Map<String, dynamic>?>(
+                            future: DatabaseHelper.instance.getAccountByUsername(friendUsername),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const CircularProgressIndicator(); // Show loading indicator
+                              }
+                              final account = snapshot.data;
+                              final avatarPath = account?['avatarPath'] as String?;
+
+                              debugPrint("Avatar Path for $friendUsername: $avatarPath"); // Debugging
+
+                              return _buildFriendListTile(friendUsername, avatarPath);
+                            },
+                          );
                         }).toList(),
+
                       ),
                     ),
                   const Divider(height: 30, thickness: 1),
